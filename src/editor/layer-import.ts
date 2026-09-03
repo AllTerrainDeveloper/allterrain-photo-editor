@@ -27,6 +27,8 @@ const DROP_FIT = 0.8;
 /** What layer import needs from the renderer. */
 export interface LayerPixels {
 	addRasterTexture: ( id: string, source: HTMLCanvasElement | HTMLImageElement ) => void;
+	/** The native size of whatever backs a layer; zero when it has no texture. */
+	layerTextureSize: ( id: string ) => { width: number; height: number };
 }
 
 /** What layer import needs from the editor. */

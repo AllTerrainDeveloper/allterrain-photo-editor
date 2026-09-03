@@ -55,12 +55,15 @@ export function registerNativeWindow(): void {
  * Renders the editor into a native window body.
  *
  * The shell clones the registered `<template>` into the body before calling this,
- * so the mount point is already there to be found rather than created.
+ * so the mount point is already there to be found rather than created. The App
+ * Framework path arrives here too, from `src/app.ts`, with the root its client view
+ * painted.
  *
  * @param body Window body element.
+ * @param ctx  Optional. The shell's render context, for its loading state.
  * @return Teardown, captured by the shell and run on close.
  */
-function renderWindow(
+export function renderWindow(
 	body: HTMLElement,
 	ctx?: NativeRenderContext
 ): () => void {

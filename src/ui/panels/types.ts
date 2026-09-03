@@ -142,6 +142,13 @@ export interface PanelContext {
 	setLayers: ( layers: Layer[], activeId?: string ) => void;
 	/** Adds an empty layer above the active one and selects it. */
 	addLayer: () => void;
+	/**
+	 * Reopens a text layer for retyping.
+	 *
+	 * The caret lands over the glyphs with the words in it. A layer that is not text
+	 * is left alone.
+	 */
+	editTextLayer: ( layerId: string ) => void;
 	/** Brush, eraser and fill settings, shared by all three. */
 	getBrush: () => BrushSettings;
 	/** Changes brush settings. */

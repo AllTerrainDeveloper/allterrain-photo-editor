@@ -1,16 +1,21 @@
 import { defineConfig } from 'vite';
 
 /**
- * Two passes write into the same output directory: `--mode development` emits the
+ * Four passes write into the same output directory. `--mode development` emits the
  * readable `lienzo.js` that WordPress serves under SCRIPT_DEBUG, and
- * `--mode production` emits the minified `lienzo.min.js`. `emptyOutDir` is off so
- * the second pass does not delete the first pass's output.
+ * `--mode production` emits the minified `lienzo.min.js`. `--mode app` and
+ * `--mode app-min` do the same for `lienzo-app[.min].js`, the few lines that
+ * declare the editor's window to OpenStation's App Framework -- a second entry
+ * because an IIFE bundle has exactly one. `emptyOutDir` is off so no pass deletes
+ * another's output.
  *
  * PixiJS is never bundled — see bin/vendor-pixi.mjs for why. It is read off
  * `window.PIXI` at runtime and typed against src/engine/pixi-types.ts.
  */
 export default defineConfig( ( { mode } ) => {
-	const isProd = mode === 'production';
+	const app = mode.startsWith( 'app' );
+	const isProd = mode === 'production' || mode === 'app-min';
+	const base = app ? 'lienzo-app' : 'lienzo';
 
 	return {
 		build: {
@@ -20,10 +25,10 @@ export default defineConfig( ( { mode } ) => {
 			minify: isProd ? 'esbuild' : false,
 			sourcemap: false,
 			lib: {
-				entry: 'src/index.ts',
+				entry: app ? 'src/app.ts' : 'src/index.ts',
 				formats: [ 'iife' ],
-				name: 'lienzo',
-				fileName: () => ( isProd ? 'lienzo.min.js' : 'lienzo.js' ),
+				name: app ? 'lienzoApp' : 'lienzo',
+				fileName: () => `${ base }${ isProd ? '.min' : '' }.js`,
 			},
 		},
 		test: {

@@ -13,7 +13,11 @@ import { mount } from './editor';
 import type { EditorInstance, MountOptions } from './editor';
 import { bootAdminPage } from './hosts/admin-page';
 import { bootBlockEditor } from './hosts/block-editor';
-import { bootDesktopMode, openInDesktop } from './hosts/desktop-mode';
+import {
+	bootDesktopMode,
+	openInDesktop,
+	renderDesktopWindow,
+} from './hosts/desktop-mode';
 import { bootMediaDrag } from './hosts/media-drag';
 import { bootMediaModal } from './hosts/media-modal';
 import { openEditor } from './hosts/open';
@@ -50,6 +54,14 @@ export interface LienzoApi {
 	openInDesktop: typeof openInDesktop;
 	/** Opens an image in a full-screen overlay over the current screen. */
 	openEditorOverlay: typeof openEditorOverlay;
+	/**
+	 * Renders the desktop window's contents into an element.
+	 *
+	 * What the App Framework client view (`src/app.ts`) calls once the shell has
+	 * mounted the window: the picker, or the pending image, and every desktop
+	 * integration the window body carries. Returns the teardown to run on close.
+	 */
+	renderDesktopWindow: typeof renderDesktopWindow;
 	registerPanel: typeof registerPanel;
 	unregisterPanel: typeof unregisterPanel;
 	listPanels: typeof listPanels;
@@ -87,6 +99,7 @@ export {
 	openEditor,
 	openEditorOverlay,
 	openInDesktop,
+	renderDesktopWindow,
 	registerPanel,
 	unregisterPanel,
 	listPanels,

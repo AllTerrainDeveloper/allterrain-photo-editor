@@ -59,10 +59,11 @@ export function activeLayer( recipe: Recipe ): Layer {
 }
 
 /**
- * Whether the document holds pixels that no recipe can reproduce.
+ * Whether the document holds pixels that no recipe can reproduce on its own.
  *
  * Painted and pasted layers are not describable, so an edit containing them is only
- * fully preserved by saving the rendered result.
+ * fully preserved when their pixels travel with the save. Text layers are not counted:
+ * they carry the words they were typed as, and can be drawn again from those.
  *
  * @param recipe Recipe to test.
  */

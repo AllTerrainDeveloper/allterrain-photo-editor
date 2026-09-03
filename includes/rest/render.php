@@ -55,7 +55,12 @@ function lienzo_rest_render( $request ) {
 		);
 	}
 
-	$new_id = lienzo_store_render( $files['file'], $source_id, $recipe );
+	$new_id = lienzo_store_render(
+		$files['file'],
+		$source_id,
+		$recipe,
+		lienzo_layer_uploads( $files )
+	);
 
 	if ( is_wp_error( $new_id ) ) {
 		return $new_id;
@@ -79,7 +84,10 @@ function lienzo_rest_render( $request ) {
 			 * recipe over the original -- and the editor says so, because "saved" and
 			 * "saved, and the layers are now pixels" are different promises.
 			 */
-			'flattened' => ! lienzo_recipe_is_reproducible( $recipe ),
+			'flattened' => ! lienzo_recipe_is_reproducible(
+				$recipe,
+				array_keys( lienzo_get_layer_files( $new_id ) )
+			),
 		)
 	);
 

@@ -81,9 +81,9 @@ export interface Recipe {
 	/**
 	 * The layer stack, back to front.
 	 *
-	 * Only `image` layers are reproducible from this description. A `raster` layer
-	 * holds pixels that exist nowhere else, so re-opening a saved edit restores its
-	 * position but not its content -- see `hasRasterLayers()`.
+	 * `image` and `text` layers are reproducible from this description alone. A
+	 * `raster` layer holds pixels that exist nowhere else, so a save carries them as a
+	 * file of their own beside the recipe -- see `hasRasterLayers()`.
 	 */
 	layers: Layer[];
 	/** Which layer the tools act on. */

@@ -120,12 +120,20 @@ export class RecipeStore extends UndoableStore< Recipe, RecipeScope, PixelPatch 
 	 * @param activeId Optional. Which layer becomes active.
 	 * @param undoable Optional. False folds the change into the current entry, for a
 	 *                 layer that exists only because a stroke needed somewhere to go.
+	 * @param label    Optional. History label. Consecutive changes sharing one coalesce,
+	 *                 so a change that must stand as its own undo step -- retyping a text
+	 *                 layer, right after selecting it -- passes a label of its own.
 	 */
-	setLayers( layers: Layer[], activeId?: string, undoable = true ): void {
+	setLayers(
+		layers: Layer[],
+		activeId?: string,
+		undoable = true,
+		label = 'layers'
+	): void {
 		const next = setLayers( this.current, layers, activeId );
 
 		if ( undoable ) {
-			this.push( next, 'layers', 'document' );
+			this.push( next, label, 'document' );
 		} else {
 			this.replace( next, 'document' );
 		}

@@ -122,6 +122,7 @@ function lienzo_get_config() {
 		'mediaUrl'           => esc_url_raw( rest_url( 'wp/v2/media' ) ),
 		'supportedMimes'     => lienzo_supported_mime_types(),
 		'maxRenderPixels'    => lienzo_max_render_pixels(),
+		'maxUploadBytes'     => lienzo_max_upload_bytes(),
 		'maxSelectionPixels' => lienzo_max_selection_pixels(),
 		'maxEdgePixels'      => lienzo_max_edge_pixels(),
 		'canUpload'          => current_user_can( 'upload_files' ),

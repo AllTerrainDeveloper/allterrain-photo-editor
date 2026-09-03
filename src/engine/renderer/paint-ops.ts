@@ -8,7 +8,7 @@
  */
 
 import type { CanvasSize } from '../../model/document';
-import type { GpuContext } from './gpu';
+import type { GpuContext, GpuSprite, GpuTexture } from './gpu';
 import type { LayerTextures } from './layer-textures';
 
 /** A region of a layer, in canvas pixels. */
@@ -36,22 +36,30 @@ export interface StampOptions {
 	/** Diameter in canvas pixels. */
 	size: number;
 	colour: string;
+	/** Stroke opacity, 0..1. Applied to the whole stroke, never to one dab. */
 	opacity: number;
 	/** Whether to remove rather than add. */
 	erase: boolean;
 }
 
 /**
- * Stamps one brush dab into a layer.
+ * Builds the sprite for one brush dab.
  *
  * The stamp is white with its shape in the alpha, tinted here -- so one cached stamp
- * serves every colour.
+ * serves every colour. An eraser dab stays white: what it removes is decided by the
+ * blend mode it is drawn with, not by its colour.
+ *
+ * The caller decides where the dab lands and destroys the texture afterwards. The
+ * stroke buffer draws dabs into its own texture and applies the opacity once for the
+ * whole stroke -- see `stroke-buffer.ts` for why a dab must never carry it.
  *
  * @param ctx     Paint context.
- * @param options Dab to stamp.
+ * @param options Dab to build.
  */
-export function stampBrush( ctx: PaintContext, options: StampOptions ): void {
-	const target = ctx.layers.ensurePaintable( options.layerId, ctx.canvas );
+export function dabSprite(
+	ctx: PaintContext,
+	options: StampOptions
+): { sprite: GpuSprite; release: () => void } {
 	const texture = ctx.gpu.textureFrom( options.image );
 	const sprite = ctx.gpu.sprite( texture );
 
@@ -59,21 +67,12 @@ export function stampBrush( ctx: PaintContext, options: StampOptions ): void {
 	sprite.width = options.size;
 	sprite.height = options.size;
 	sprite.position.set( options.x, options.y );
-	sprite.alpha = options.opacity;
 
-	if ( options.erase ) {
-		// Removes the destination's alpha rather than painting over it, which is
-		// what makes an eraser reveal the layers beneath instead of a colour.
-		sprite.blendMode = 'erase';
-	} else {
+	if ( ! options.erase ) {
 		sprite.tint = options.colour;
 	}
 
-	const clip = ctx.layers.clip( sprite );
-
-	ctx.gpu.draw( clip.container, target );
-	clip.release();
-	texture.destroy( true );
+	return { sprite, release: () => texture.destroy( true ) };
 }
 
 /**
@@ -166,14 +165,18 @@ export function compositeCanvas(
  * @param ctx     Paint context.
  * @param layerId Layer to read.
  * @param rect    Region, in canvas pixels.
+ * @param source  Optional. A texture to read instead of the layer's own -- the
+ *                snapshot a stroke in progress keeps, so undo captures the pixels as
+ *                they stood before the stroke rather than half-way through it.
  * @return The pixels, or null when the layer has no texture yet.
  */
 export function extractLayerRegion(
 	ctx: PaintContext,
 	layerId: string,
-	rect: PixelRect
+	rect: PixelRect,
+	source?: GpuTexture
 ): HTMLCanvasElement | null {
-	const texture = ctx.layers.get( layerId );
+	const texture = source ?? ctx.layers.get( layerId );
 
 	if ( ! texture || rect.width < 1 || rect.height < 1 ) {
 		return null;

@@ -12,6 +12,11 @@
  * rasterises it through the same `textCanvas()` the tool always used, so the editing
  * surface and the output cannot drift apart -- they share the measurement code.
  *
+ * The same caret reopens over text that has already been committed. A text layer
+ * remembers its words, so clicking it with the Text tool puts the field back where
+ * the glyphs are, filled with what they say, and committing swaps the rendering for
+ * a new one. That is the difference between text as an object and text as paint.
+ *
  * A textarea rather than a contenteditable div: it gives a native caret, native
  * selection, native undo within the field and plain text on paste, none of which are
  * worth reimplementing.
@@ -29,6 +34,22 @@ export interface TextStyle {
 	italic: boolean;
 }
 
+/** What opening the caret over existing text needs to know. */
+export interface TextOpenOptions {
+	/** Words to start with. Empty for a fresh caret. */
+	initial?: string;
+	/** The layer being retyped, when the caret is over one. */
+	layerId?: string;
+	/**
+	 * The layer's transform scale, so the caret is the size the glyphs are drawn at.
+	 *
+	 * The type size is defined against the layer's own bitmap, and the layer may have
+	 * been scaled since; a caret at the unscaled size would sit inside text twice as
+	 * big as itself.
+	 */
+	scale?: { x: number; y: number };
+}
+
 export interface TextEditorOptions {
 	/** The canvas area the editor floats over. */
 	stage: HTMLElement;
@@ -41,12 +62,27 @@ export interface TextEditorOptions {
 	/**
 	 * Called when the text is finished.
 	 *
-	 * @param text  What was typed. Never empty.
-	 * @param point Where the glyphs' top-left corner sits, in canvas pixels.
+	 * @param text    What was typed. Never empty for a fresh caret; may be empty when
+	 *                an existing layer was retyped, which means "remove it".
+	 * @param point   Where the glyphs' top-left corner sits, in canvas pixels.
+	 * @param layerId The layer being retyped, or null for new text.
 	 */
-	onCommit: ( text: string, point: { x: number; y: number } ) => void;
+	onCommit: (
+		text: string,
+		point: { x: number; y: number },
+		layerId: string | null
+	) => void;
 	/** Called when editing starts or stops, so the toolbar can follow. */
 	onStateChange?: () => void;
+	/**
+	 * Elements whose controls restyle the text rather than finish it.
+	 *
+	 * The options bar and the sidebar. Clicking a colour swatch, a font menu or the
+	 * Bold checkbox takes focus off the caret, and a caret that committed on every
+	 * blur was gone before the colour could be chosen -- the tool switched, the bar
+	 * changed underneath the click, and the text could not be restyled at all.
+	 */
+	chrome?: HTMLElement[];
 }
 
 /**
@@ -60,6 +96,24 @@ export class TextEditor {
 	/** Where the text begins, in canvas pixels. */
 	private anchor: { x: number; y: number } | null = null;
 
+	/** The layer whose words are being retyped, if any. */
+	private layerId: string | null = null;
+
+	/** The scale the caret is drawn at, from the layer being retyped. */
+	private scale = { x: 1, y: 1 };
+
+	/**
+	 * Whether a press on the editor's own chrome is under way.
+	 *
+	 * Set on the press and cleared on the release, because the blur it causes arrives
+	 * with no `relatedTarget` when the thing pressed cannot take focus -- a label, the
+	 * bar's own background -- and the caret has to know not to commit for it anyway.
+	 */
+	private pressingChrome = false;
+
+	/** Listeners on the chrome, removed when the caret closes. */
+	private detachChrome: Array< () => void > = [];
+
 	constructor( options: TextEditorOptions ) {
 		this.options = options;
 	}
@@ -67,6 +121,11 @@ export class TextEditor {
 	/** Whether something is being typed right now. */
 	get isEditing(): boolean {
 		return this.field !== null;
+	}
+
+	/** The layer being retyped, or null when the caret is over new text or closed. */
+	get editingLayerId(): string | null {
+		return this.field ? this.layerId : null;
 	}
 
 	/**
@@ -98,9 +157,10 @@ export class TextEditor {
 	 * Anything already being typed is committed first, so no caller can end up with two
 	 * carets open at once.
 	 *
-	 * @param point Canvas coordinates for the top-left of the first line.
+	 * @param point   Canvas coordinates for the top-left of the first line.
+	 * @param options Optional. Existing words to start from, and the layer they belong to.
 	 */
-	open( point: { x: number; y: number } ): void {
+	open( point: { x: number; y: number }, options: TextOpenOptions = {} ): void {
 		this.commit();
 
 		const field = document.createElement( 'textarea' );
@@ -109,21 +169,30 @@ export class TextEditor {
 		field.rows = 1;
 		field.spellcheck = false;
 		field.setAttribute( 'aria-label', 'Text' );
+		field.value = options.initial ?? '';
 
 		// The stage listens for pointerdown to place text; without this, clicking into
 		// what you are already typing would commit it and start again one character in.
 		field.addEventListener( 'pointerdown', ( event ) => event.stopPropagation() );
 		field.addEventListener( 'input', this.onInput );
 		field.addEventListener( 'keydown', this.onKeyDown );
-		// Clicking away is a commit, the same as it is in a spreadsheet cell.
-		field.addEventListener( 'blur', () => this.commit() );
+		// Clicking away is a commit, the same as it is in a spreadsheet cell -- unless
+		// "away" is the options bar, where the click is about this text.
+		field.addEventListener( 'blur', this.onBlur );
+		this.watchChrome();
 
 		this.anchor = point;
+		this.layerId = options.layerId ?? null;
+		this.scale = options.scale ?? { x: 1, y: 1 };
 		this.field = field;
 		this.options.stage.appendChild( field );
 
 		this.restyle();
 		field.focus();
+
+		// The caret goes to the end, where a correction or a continuation both start.
+		field.setSelectionRange( field.value.length, field.value.length );
+
 		this.options.onStateChange?.();
 	}
 
@@ -131,6 +200,60 @@ export class TextEditor {
 	private onInput = (): void => {
 		this.resize();
 	};
+
+	/**
+	 * Finishes the text when focus genuinely leaves it.
+	 *
+	 * Focus moving onto the editor's own chrome does not count: the colour swatch, the
+	 * font menu and the weight toggles exist to restyle what is being typed, and every
+	 * one of them takes focus to work. The caret stays, restyles live, and is one click
+	 * away from typing again.
+	 *
+	 * @param event Focus event.
+	 */
+	private onBlur = ( event: FocusEvent ): void => {
+		if ( this.pressingChrome || this.isChrome( event.relatedTarget ) ) {
+			return;
+		}
+
+		this.commit();
+	};
+
+	/**
+	 * Whether an element belongs to the chrome that restyles rather than finishes.
+	 *
+	 * @param target What received focus.
+	 */
+	private isChrome( target: EventTarget | null ): boolean {
+		return (
+			target instanceof Node &&
+			( this.options.chrome ?? [] ).some( ( host ) => host.contains( target ) )
+		);
+	}
+
+	/** Notices presses on the chrome, so a blur they cause is not a commit. */
+	private watchChrome(): void {
+		const down = () => {
+			this.pressingChrome = true;
+		};
+		const up = () => {
+			this.pressingChrome = false;
+		};
+
+		for ( const host of this.options.chrome ?? [] ) {
+			host.addEventListener( 'pointerdown', down, true );
+			this.detachChrome.push( () =>
+				host.removeEventListener( 'pointerdown', down, true )
+			);
+		}
+
+		window.addEventListener( 'pointerup', up, true );
+		window.addEventListener( 'pointercancel', up, true );
+		this.detachChrome.push( () => {
+			window.removeEventListener( 'pointerup', up, true );
+			window.removeEventListener( 'pointercancel', up, true );
+		} );
+	}
 
 	/**
 	 * Handles the keys that finish or abandon the text.
@@ -171,11 +294,12 @@ export class TextEditor {
 		const style = this.options.getStyle();
 		// Canvas pixels to screen pixels: the type size is defined against the image, so
 		// the caret has to grow and shrink with the zoom or it would lie about the size.
-		const scale = viewport.width / canvas.width;
+		// The layer's own scale rides along for the same reason.
+		const zoom = viewport.width / canvas.width;
 
 		field.style.font = cssFont( {
 			text: '',
-			size: Math.max( 1, style.size * scale ),
+			size: Math.max( 1, style.size * zoom * this.scale.x ),
 			family: style.family,
 			colour: style.colour,
 			bold: style.bold,
@@ -209,10 +333,16 @@ export class TextEditor {
 		field.style.blockSize = `${ field.scrollHeight }px`;
 	}
 
-	/** Rasterises what was typed and closes the caret. */
+	/**
+	 * Rasterises what was typed and closes the caret.
+	 *
+	 * Over an existing layer the commit always fires, even with the field emptied:
+	 * deleting every word of a text layer is how you delete the layer.
+	 */
 	commit(): void {
 		const field = this.field;
 		const anchor = this.anchor;
+		const layerId = this.layerId;
 
 		if ( ! field || ! anchor ) {
 			return;
@@ -222,8 +352,8 @@ export class TextEditor {
 
 		this.close();
 
-		if ( text.trim() ) {
-			this.options.onCommit( text, anchor );
+		if ( text.trim() || layerId ) {
+			this.options.onCommit( text, anchor, layerId );
 		}
 	}
 
@@ -238,6 +368,15 @@ export class TextEditor {
 
 		this.field = null;
 		this.anchor = null;
+		this.layerId = null;
+		this.scale = { x: 1, y: 1 };
+		this.pressingChrome = false;
+
+		for ( const off of this.detachChrome ) {
+			off();
+		}
+
+		this.detachChrome = [];
 
 		// Removing a focused field fires blur, which calls commit() -- harmless, because
 		// the field reference is already gone and commit() returns immediately.

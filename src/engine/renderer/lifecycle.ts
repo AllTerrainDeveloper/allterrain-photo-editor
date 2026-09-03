@@ -23,6 +23,7 @@ export function releaseImage(
 	sprite: GpuSprite | null,
 	texture: GpuTexture | null
 ): null {
+	engine.paint.dispose();
 	engine.compositor.release();
 	engine.layers.releaseAll();
 	engine.filters.release();

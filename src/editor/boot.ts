@@ -8,9 +8,9 @@
  */
 
 import { EditorRenderer } from '../engine/renderer';
-import { __ } from '../i18n';
+import { __, sprintf } from '../i18n';
 import { validateRecipe } from '../model/recipe';
-import { loadSourceImage } from '../net/image-loader';
+import { loadImageBlob, loadSourceImage } from '../net/image-loader';
 import { toast } from '../platform';
 import { registerBuiltInPanels } from '../ui/panels/built-in';
 import { PanelHost } from '../ui/panels';
@@ -20,6 +20,7 @@ import { attachPasteboard } from './pasteboard';
 import { pushToRenderer, retainTextures } from './renderer-sync';
 import { attachEditorShortcuts } from './shortcuts';
 import { StrokeRecorder } from './stroke-recorder';
+import { rasteriseTextLayer } from './text-layer';
 import { buildStageToolset } from './wire-stage';
 
 /**
@@ -93,6 +94,12 @@ async function startRenderer( editor: Editor ): Promise< void > {
 	editor.store.replace( { ...stored, canvas }, 'document' );
 	editor.strokes = new StrokeRecorder( editor.store, renderer.paint );
 
+	await restoreLayers( editor );
+
+	if ( editor.isDestroyed ) {
+		return;
+	}
+
 	editor.onTeardown(
 		editor.store.subscribe( ( recipe, scope ) => {
 			retainTextures( renderer, editor.store.states );
@@ -115,6 +122,71 @@ async function startRenderer( editor: Editor ): Promise< void > {
 	editor.syncToolbar();
 	editor.onTeardown( attachEditorShortcuts( shortcutTarget( editor ) ) );
 	editor.shell.setTitle( payload.title );
+}
+
+/**
+ * Puts the pixels back behind every layer the recipe describes.
+ *
+ * A text layer is drawn again from its words. A raster layer's pixels were stored
+ * beside the copy when it was saved, and are fetched back here. Either way the layer
+ * arrives as it was left, which is the whole promise of re-opening an edit.
+ *
+ * A layer that cannot be restored is reported and left empty rather than failing the
+ * open: the rest of the document is still worth having.
+ *
+ * @param editor The editor.
+ */
+async function restoreLayers( editor: Editor ): Promise< void > {
+	const renderer = editor.renderer!;
+	const stored = editor.payload?.layers ?? {};
+	const recipe = editor.store.current;
+	const failed: string[] = [];
+	let restoring = false;
+
+	for ( const layer of recipe.layers ) {
+		if ( 'text' === layer.kind ) {
+			rasteriseTextLayer( renderer.paint, layer );
+
+			continue;
+		}
+
+		const url = 'raster' === layer.kind ? stored[ layer.id ] : undefined;
+
+		if ( ! url ) {
+			continue;
+		}
+
+		if ( ! restoring ) {
+			restoring = true;
+			editor.shell.setStatus( __( 'Restoring layers…' ) );
+		}
+
+		try {
+			const loaded = await loadImageBlob( await editor.client.getBlob( url ) );
+
+			if ( editor.isDestroyed ) {
+				loaded.release();
+
+				return;
+			}
+
+			renderer.paint.addRasterTexture( layer.id, loaded.image );
+			loaded.release();
+		} catch {
+			failed.push( layer.name );
+		}
+	}
+
+	if ( failed.length > 0 ) {
+		toast(
+			sprintf(
+				/* translators: %s: comma-separated layer names. */
+				__( 'Some layers could not be restored: %s' ),
+				failed.join( ', ' )
+			),
+			'error'
+		);
+	}
 }
 
 /**

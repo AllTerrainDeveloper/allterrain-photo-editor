@@ -60,13 +60,18 @@ records the edit as a recipe: the list of adjustments, not the pixels. Re-openin
 *original's* pixels plus the recipe, so every render is first-generation and repeated edits never
 compound quantisation loss.
 
-That only holds while the recipe describes the whole image. A painted, pasted or dropped layer is
-pixels, and no replay of a recipe over the original brings them back — so a save carrying any of them
-becomes **its own origin**: no source pointer, no stored recipe, and re-opening shows the flattened
-pixels with the sliders at zero. Getting this wrong is subtle and was: the save pointed back at the
-original and stored a recipe naming a raster layer whose pixels lived nowhere, so the file in the
-library was correct and re-opening it showed the original with an empty layer where the painting had
-been. `lienzo_recipe_is_reproducible()` is the one place that decides.
+That only holds while the recipe describes the whole image. A text layer does: it carries the words
+it was typed as and the style they were set in, and is drawn again from those on open — which is also
+what makes it retypeable. A painted, pasted or dropped layer is pixels, and no replay of a recipe over
+the original brings them back, so **a save carries them along**: each raster layer is encoded as a PNG
+of its own and stored beside the copy under `uploads/allterrain-photo-editor/layers/<id>/`, the recipe
+names it, and re-opening fetches the pixels back through the plugin's own route. Only when a layer
+cannot come — too large for the site to accept — does the save become **its own origin**: no source
+pointer, no stored recipe, and re-opening shows the flattened pixels with the sliders at zero.
+Getting this wrong is subtle and was: an earlier save pointed back at the original and stored a
+recipe naming a raster layer whose pixels lived nowhere, so the file in the library was correct and
+re-opening it showed the original with an empty layer where the painting had been.
+`lienzo_recipe_is_reproducible()` is the one place that decides, and it is told which layers made it.
 
 **Resolution independence is what makes the preview honest.** The on-screen sprite is scaled to fit
 the viewport and Pixi runs filters at rendered size, so dragging a slider on a 6000px photo costs

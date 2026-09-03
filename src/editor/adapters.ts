@@ -93,6 +93,7 @@ export function panelContext( editor: Editor ): PanelContext {
 		getView: () => editor.state.getView(),
 		setView: ( patch ) => editor.state.setView( patch ),
 		addLayer: () => addLayer( editor ),
+		editTextLayer: ( layerId ) => void editor.editText( layerId ),
 		getViewport: () => editor.renderer?.view.viewport() ?? null,
 		onViewportChange: ( listener ) =>
 			editor.renderer?.view.onChange( listener ) ?? ( () => {} ),

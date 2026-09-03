@@ -5,7 +5,7 @@
 import { __ } from '../../../i18n';
 import { BASE_LAYER_ID, reorderLayer, updateLayer } from '../../../model/document';
 import type { Layer } from '../../../model/document';
-import { createButton, createIconButton } from '../../controls';
+import { createButton, createIconButton, createSlider } from '../../controls';
 import type { IconButtonHandle } from '../../controls';
 import { registerPanel } from '../registry';
 import type { PanelContext } from '../types';
@@ -57,7 +57,36 @@ function layerRow(
 	const down = move( '↓', __( 'Send backward' ), -1 );
 
 	const handles = [ eye, up, down ];
-	row.append( eye.el, name, up.el, down.el );
+	// A layer that is not fully opaque says so beside its name, since the slider below
+	// only ever shows the active one.
+	if ( layer.opacity < 1 ) {
+		const faded = document.createElement( 'span' );
+
+		faded.className = 'lz-layer__opacity';
+		faded.textContent = `${ Math.round( layer.opacity * 100 ) }%`;
+		name.appendChild( faded );
+	}
+
+	row.append( eye.el, name );
+
+	// Text remembers its words, so it can be retyped. The button is the discoverable
+	// way in; clicking the text with the Text tool, or double-clicking it with
+	// Transform, is the fast one.
+	if ( layer.text ) {
+		row.classList.add( 'is-text' );
+
+		const edit = createIconButton( {
+			glyph: 'T',
+			label: __( 'Edit text' ),
+			className: 'lz-layer__edit',
+			onClick: () => ctx.editTextLayer( layer.id ),
+		} );
+
+		handles.push( edit );
+		row.appendChild( edit.el );
+	}
+
+	row.append( up.el, down.el );
 
 	// The base image is the document's reason for existing; removing it would leave
 	// an edit of nothing.
@@ -77,6 +106,26 @@ function layerRow(
 	}
 
 	return { el: row, handles };
+}
+
+/**
+ * The layer the tools act on.
+ *
+ * @param ctx Panel context.
+ */
+function activeLayer( ctx: PanelContext ): Layer | undefined {
+	const layers = ctx.getLayers();
+
+	return layers.find( ( layer ) => layer.id === ctx.getActiveLayerId() ) ?? layers[ 0 ];
+}
+
+/**
+ * The active layer's opacity as a percentage.
+ *
+ * @param ctx Panel context.
+ */
+function activeOpacity( ctx: PanelContext ): number {
+	return Math.round( ( activeLayer( ctx )?.opacity ?? 1 ) * 100 );
 }
 
 /** Registers the Layers panel. */
@@ -113,6 +162,27 @@ export function registerLayersPanel(): void {
 				}
 			};
 
+			// One slider for the active layer rather than one per row: the row is
+			// already dense, and opacity is something you adjust on the layer you are
+			// looking at. A drag is one undo step; `setLayers` coalesces the ticks.
+			const opacity = createSlider( {
+				label: __( 'Opacity' ),
+				min: 0,
+				max: 100,
+				step: 1,
+				suffix: '%',
+				value: activeOpacity( ctx ),
+				resetTo: 100,
+				onInput: ( value ) =>
+					ctx.setLayers(
+						updateLayer( ctx.getLayers(), ctx.getActiveLayerId(), {
+							opacity: Math.min( 1, Math.max( 0, value / 100 ) ),
+						} )
+					),
+			} );
+
+			opacity.el.classList.add( 'lz-layers__opacity' );
+
 			const add = createButton( {
 				label: __( 'Add layer' ),
 				variant: 'secondary',
@@ -122,17 +192,21 @@ export function registerLayersPanel(): void {
 			const hint = document.createElement( 'p' );
 			hint.className = 'lz-hint';
 			hint.textContent = __(
-				'Painted and pasted layers are pixels, not settings — save a copy to keep them.'
+				'Layers travel with the saved copy: open it again and they are still here to edit.'
 			);
 
-			const off = ctx.onRecipeChange( draw );
+			const off = ctx.onRecipeChange( () => {
+				draw();
+				opacity.setValue( activeOpacity( ctx ) );
+			} );
 
 			draw();
-			host.append( list, add.el, hint );
+			host.append( list, opacity.el, add.el, hint );
 
 			return () => {
 				releaseRows();
 				off();
+				opacity.destroy();
 				add.destroy();
 			};
 		},

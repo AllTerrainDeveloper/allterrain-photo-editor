@@ -69,7 +69,7 @@ describe( 'TextEditor.place', () => {
 		text.place( { x: 90, y: 60 } );
 
 		expect( onCommit ).toHaveBeenCalledTimes( 1 );
-		expect( onCommit ).toHaveBeenCalledWith( 'Hello', { x: 10, y: 20 } );
+		expect( onCommit ).toHaveBeenCalledWith( 'Hello', { x: 10, y: 20 }, null );
 		expect( text.isEditing ).toBe( false );
 		expect( field( stage ) ).toBeNull();
 	} );
@@ -87,7 +87,7 @@ describe( 'TextEditor.place', () => {
 		text.place( { x: 0, y: 0 } );
 
 		expect( onCommit ).toHaveBeenCalledTimes( 2 );
-		expect( onCommit ).toHaveBeenLastCalledWith( 'World', { x: 90, y: 60 } );
+		expect( onCommit ).toHaveBeenLastCalledWith( 'World', { x: 90, y: 60 }, null );
 	} );
 
 	it( 'commits nothing when the caret was left empty', () => {
@@ -111,5 +111,91 @@ describe( 'TextEditor.place', () => {
 
 		expect( onCommit ).not.toHaveBeenCalled();
 		expect( field( stage ) ).toBeNull();
+	} );
+} );
+
+describe( 'TextEditor and the editor chrome', () => {
+	/**
+	 * An editor whose options bar is a sibling of the stage.
+	 *
+	 * @param onCommit Called when text is finished.
+	 */
+	function withChrome( onCommit: TextEditorOptions[ 'onCommit' ] ) {
+		const stage = document.createElement( 'div' );
+		const bar = document.createElement( 'div' );
+		const swatch = document.createElement( 'input' );
+
+		swatch.type = 'color';
+		bar.appendChild( swatch );
+		document.body.append( stage, bar );
+
+		editor = new TextEditor( {
+			stage,
+			chrome: [ bar ],
+			getViewport: () => ( { x: 0, y: 0, width: 200, height: 100 } ),
+			getCanvas: () => ( { width: 200, height: 100 } ),
+			getStyle: () => ( {
+				size: 16,
+				family: 'sans-serif',
+				colour: '#000000',
+				bold: false,
+				italic: false,
+			} ),
+			onCommit,
+		} );
+
+		return { editor, stage, bar, swatch };
+	}
+
+	it( 'keeps the caret open when a control in the options bar takes focus', () => {
+		const onCommit = vi.fn();
+		const { editor: text, stage, swatch } = withChrome( onCommit );
+
+		text.open( { x: 10, y: 20 } );
+		field( stage )!.value = 'Hello';
+
+		field( stage )!.dispatchEvent(
+			new FocusEvent( 'blur', { relatedTarget: swatch } )
+		);
+
+		expect( onCommit ).not.toHaveBeenCalled();
+		expect( text.isEditing ).toBe( true );
+	} );
+
+	it( 'keeps the caret open across a press on chrome that cannot take focus', () => {
+		const onCommit = vi.fn();
+		const { editor: text, stage, bar } = withChrome( onCommit );
+
+		text.open( { x: 10, y: 20 } );
+
+		// A label or the bar's background: focus goes nowhere, so the blur names no
+		// related target. The press itself is what says "this is about the text".
+		bar.dispatchEvent( new Event( 'pointerdown', { bubbles: true } ) );
+		field( stage )!.dispatchEvent( new FocusEvent( 'blur', { relatedTarget: null } ) );
+
+		expect( text.isEditing ).toBe( true );
+
+		window.dispatchEvent( new Event( 'pointerup' ) );
+		field( stage )!.value = 'Later';
+		field( stage )!.dispatchEvent( new FocusEvent( 'blur', { relatedTarget: null } ) );
+
+		expect( onCommit ).toHaveBeenCalledWith( 'Later', { x: 10, y: 20 }, null );
+	} );
+
+	it( 'still commits when focus leaves for anywhere else', () => {
+		const onCommit = vi.fn();
+		const { editor: text, stage } = withChrome( onCommit );
+		const elsewhere = document.createElement( 'button' );
+
+		document.body.appendChild( elsewhere );
+		text.open( { x: 10, y: 20 } );
+		field( stage )!.value = 'Done';
+
+		field( stage )!.dispatchEvent(
+			new FocusEvent( 'blur', { relatedTarget: elsewhere } )
+		);
+
+		expect( onCommit ).toHaveBeenCalledTimes( 1 );
+		expect( text.isEditing ).toBe( false );
 	} );
 } );

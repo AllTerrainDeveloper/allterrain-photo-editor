@@ -47,6 +47,14 @@ export interface LienzoConfig {
 	maxEdgePixels: number;
 	canUpload: boolean;
 	/**
+	 * The largest file, in bytes, the render endpoint accepts.
+	 *
+	 * A saved layer larger than this would be refused, so the editor leaves every
+	 * layer out of that save and lets it flatten rather than fail. Filterable in PHP
+	 * through `lienzo_max_upload_bytes`.
+	 */
+	maxUploadBytes: number;
+	/**
 	 * Whether OpenStation is active *for this user*, not merely installed.
 	 *
 	 * OpenStation is a per-user preference, so the plugin being active says nothing
@@ -93,6 +101,13 @@ export interface MediaPayload {
 	title: string;
 	alt: string;
 	recipe: import('./model/recipe').Recipe;
+	/**
+	 * Where each saved raster layer's pixels can be fetched, keyed by layer id.
+	 *
+	 * Present when this attachment was saved with its layers. The URLs are this
+	 * plugin's own routes and need the REST nonce.
+	 */
+	layers?: Record< string, string >;
 	canSave: boolean;
 	schema: OpSchema;
 }
@@ -108,9 +123,10 @@ export interface SaveResult {
 	/**
 	 * Whether painted, pasted or dropped layers were baked into the saved file.
 	 *
-	 * Such a save cannot be replayed from the original, so it becomes its own origin:
-	 * re-opening it shows the pixels that were saved, with the adjustments already in
-	 * them and the sliders back at zero.
+	 * Ordinarily they travel with the save as files of their own, and the copy opens
+	 * again with every layer in place. When they could not -- too large for this site
+	 * to accept -- the save becomes its own origin: re-opening it shows the pixels that
+	 * were saved, with the adjustments already in them and the sliders back at zero.
 	 */
 	flattened: boolean;
 	id: number;

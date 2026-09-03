@@ -312,12 +312,15 @@ export class GpuContext {
 	}
 
 	/**
-	 * Reads a target back as a canvas.
+	 * Reads a texture back as a canvas.
 	 *
-	 * @param target Texture to read.
+	 * Any texture, not only a render target: a pasted layer's pixels sit in a plain
+	 * texture, and saving them beside the recipe has to read those too.
+	 *
+	 * @param texture Texture to read.
 	 */
-	extractCanvas( target: GpuTarget ): HTMLCanvasElement {
-		return this.app.renderer.extract.canvas( target ) as HTMLCanvasElement;
+	extractCanvas( texture: GpuTexture ): HTMLCanvasElement {
+		return this.app.renderer.extract.canvas( texture ) as HTMLCanvasElement;
 	}
 
 	/**

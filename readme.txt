@@ -5,7 +5,7 @@ Requires at least: 6.0
 Requires Plugins: desktop-mode
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.1
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -138,6 +138,16 @@ This plugin bundles no third-party libraries and makes no external or CDN reques
 Rendering uses PixiJS (MIT), which is bundled by the OpenStation plugin and served from your own server. AllTerrain Photo Editor asks OpenStation for it rather than shipping a second copy: that keeps this plugin small, and two instances of the same rendering library on one page share GPU resources through globals, where tearing one down can break the other.
 
 == Changelog ==
+
+= 1.1.0 =
+* With thanks to WP103 (https://www.youtube.com/@wordpress103) for the feedback that drove this release: the text that could not be edited again, the eraser that ignored its opacity, and the saved copy that could not be reopened for editing.
+* Text can be edited after it is placed. Click it with the Text tool, double-click it with Transform, or press the T beside it in the Layers panel; the caret comes back over the words with the font and colour they were set in. Emptying the text removes the layer.
+* Brush and eraser opacity now applies to the whole stroke, not to every dab. An eraser at 20% takes 20% of what is under it however slowly you drag; it used to reach 100% within a second because overlapping dabs compounded.
+* Saved copies open again with their layers. Painted, pasted and dropped layers travel with the save as files of their own, and text layers are drawn again from their words, so re-opening a copy shows the layer stack you left rather than a flattened image. Only a layer too large for the site to accept still bakes in, and the editor says so.
+* Layers have an Opacity slider in the Layers panel, for the layer you are working on; a faded layer shows its percentage beside its name.
+* Changing the colour, font or weight while typing no longer finishes the text: the options bar restyles the caret live.
+* The Brush panel's Retouching and Fill headings are panel subheadings again, holding their controls, instead of full-size shell sections over an empty box.
+* Runs as an OpenStation App Framework app on a shell that has the framework, and registers its window directly on one that does not.
 
 = 1.0.1
 * Clone Stamp: the sample source is now marked on the canvas and follows your brush while painting; holding Alt shows a source-picker cursor.

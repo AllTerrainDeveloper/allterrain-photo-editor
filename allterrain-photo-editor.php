@@ -3,7 +3,7 @@
  * Plugin Name:       AllTerrain Photo Editor for OpenStation
  * Plugin URI:        https://github.com/AllTerrainDeveloper/allterrain-photo-editor
  * Description:       A modern, non-destructive image editor for the WordPress media library. Exposure, colour and tone adjustments rendered on the GPU, in the browser.
- * Version:           1.0.1
+ * Version:           1.1.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Daniel Lopez
@@ -37,7 +37,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'LIENZO_VERSION', '1.0.1' );
+define( 'LIENZO_VERSION', '1.1.0' );
 define( 'LIENZO_FILE', __FILE__ );
 define( 'LIENZO_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LIENZO_URL', plugin_dir_url( __FILE__ ) );
@@ -57,6 +57,15 @@ define( 'LIENZO_RECIPE_META', '_lienzo_recipe' );
  * Post meta key holding the ID of the attachment the pixels originally came from.
  */
 define( 'LIENZO_SOURCE_META', '_lienzo_source' );
+
+/**
+ * Post meta key holding where a saved copy's painted layers are kept.
+ *
+ * A map of layer id to a path under the uploads directory. A raster layer's pixels
+ * exist nowhere but in the browser, so a save that wants to open again with its layers
+ * has to bring them along; this is where they land.
+ */
+define( 'LIENZO_LAYERS_META', '_lienzo_layers' );
 
 /**
  * The keys these two were called before the plugin was renamed.

@@ -12,6 +12,13 @@ import type {
 	SaveResult,
 } from '../types';
 
+/** One layer's pixels, ready to travel with a save. */
+export interface LayerUpload {
+	id: string;
+	/** PNG-encoded pixels, at the layer's native size. */
+	blob: Blob;
+}
+
 /** An error carrying the server's own message and code. */
 export class RestError extends Error {
 	public readonly code: string;
@@ -101,14 +108,20 @@ export class RestClient {
 	 * PNG can be tens of megabytes, and base64 would inflate that by a third before
 	 * it ever reached the wire.
 	 *
+	 * The painted layers ride along as PNGs of their own, one per layer, so the copy
+	 * can be opened again with its layers intact rather than baked in. Without them
+	 * the server stores the copy flattened, exactly as it did before they travelled.
+	 *
 	 * @param attachmentId Attachment the edit was rendered from.
 	 * @param blob         Encoded image.
 	 * @param recipe       The edit, for storage alongside the result.
+	 * @param layers       Optional. Each raster layer's pixels, keyed by layer id.
 	 */
 	async saveRender(
 		attachmentId: number,
 		blob: Blob,
-		recipe: Recipe
+		recipe: Recipe,
+		layers: LayerUpload[] = []
 	): Promise< SaveResult > {
 		const body = new FormData();
 
@@ -116,6 +129,10 @@ export class RestClient {
 		// to be present and have a plausible extension.
 		body.append( 'file', blob, 'render' );
 		body.append( 'recipe', JSON.stringify( recipe ) );
+
+		for ( const layer of layers ) {
+			body.append( `layers[${ layer.id }]`, layer.blob, `${ layer.id }.png` );
+		}
 
 		const response = await request(
 			`${ this.config.restUrl }media/${ attachmentId }/render`,
@@ -194,7 +211,19 @@ export class RestClient {
 	 * @param sourceUrl Absolute URL of the `/source` route.
 	 */
 	async getSourceBlob( sourceUrl: string ): Promise< Blob > {
-		const response = await request( sourceUrl, {
+		return this.getBlob( sourceUrl );
+	}
+
+	/**
+	 * Fetches bytes from one of this plugin's routes, with the nonce along.
+	 *
+	 * Through `fetch` rather than an `<img>` because a REST route without the nonce is
+	 * an anonymous request, and anonymous requests may not read a layer's pixels.
+	 *
+	 * @param url Absolute URL of the route.
+	 */
+	async getBlob( url: string ): Promise< Blob > {
+		const response = await request( url, {
 			credentials: 'same-origin',
 			headers: this.headers(),
 		} );
