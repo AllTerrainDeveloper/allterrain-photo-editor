@@ -138,18 +138,20 @@ export function registerBrushPanel(): void {
 				syncSelectValue( tone.el, brush.tone );
 			} );
 
+			// Subheadings of this panel, holding their own controls, rather than empty
+			// shell sections dropped between them -- which drew a Preferences-sized
+			// title over a blank box.
 			host.append(
 				shape.el,
 				size.el,
 				hardness.el,
 				opacity.el,
 				colour.el,
-				createSection( __( 'Retouching' ) ),
-				retouch.el,
-				tone.el,
-				strength.el,
-				createSection( __( 'Fill' ) ),
-				tolerance.el
+				createSection( __( 'Retouching' ), {
+					compact: true,
+					children: [ retouch.el, tone.el, strength.el ],
+				} ),
+				createSection( __( 'Fill' ), { compact: true, children: [ tolerance.el ] } )
 			);
 
 			const controls = [

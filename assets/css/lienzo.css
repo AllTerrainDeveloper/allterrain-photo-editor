@@ -2650,3 +2650,10 @@ button.lz-palette__chip.is-selected {
 	color: var( --lz-fg-muted );
 	font-size: 11px;
 }
+
+/* A panel's own subheading: the same small label the panel header wears. */
+.lz-section--compact {
+	margin-block-start: 8px;
+	padding-block-start: 8px;
+	border-block-start: 1px solid var( --lz-border, rgba( 255, 255, 255, 0.08 ) );
+}

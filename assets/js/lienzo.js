@@ -4386,21 +4386,22 @@ fn mainFragment(
   function clamp$2(value, bounds) {
     return Math.min(bounds.max, Math.max(bounds.min, value));
   }
-  function createSection(heading) {
-    const tag = componentTag("section");
+  function createSection(heading, options = {}) {
+    const tag = options.compact ? null : componentTag("section");
     if (tag) {
       const section2 = document.createElement(tag);
       section2.setAttribute("heading", heading);
       section2.setAttribute("stack", "");
       section2.classList.add("lz-section");
+      section2.append(...options.children ?? []);
       return section2;
     }
     const section = document.createElement("section");
-    section.className = "lz-section";
+    section.className = options.compact ? "lz-section lz-section--compact" : "lz-section";
     const title = document.createElement("h3");
     title.className = "lz-section__heading";
     title.textContent = heading;
-    section.appendChild(title);
+    section.append(title, ...options.children ?? []);
     return section;
   }
   function createSegmented(options) {
@@ -5511,12 +5512,11 @@ fn mainFragment(
           hardness.el,
           opacity.el,
           colour.el,
-          createSection(__("Retouching")),
-          retouch.el,
-          tone.el,
-          strength.el,
-          createSection(__("Fill")),
-          tolerance.el
+          createSection(__("Retouching"), {
+            compact: true,
+            children: [retouch.el, tone.el, strength.el]
+          }),
+          createSection(__("Fill"), { compact: true, children: [tolerance.el] })
         );
         const controls = [
           shape,

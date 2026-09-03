@@ -140,11 +140,13 @@ Rendering uses PixiJS (MIT), which is bundled by the OpenStation plugin and serv
 == Changelog ==
 
 = 1.1.0 =
+* With thanks to WP103 (https://www.youtube.com/@wordpress103) for the feedback that drove this release: the text that could not be edited again, the eraser that ignored its opacity, and the saved copy that could not be reopened for editing.
 * Text can be edited after it is placed. Click it with the Text tool, double-click it with Transform, or press the T beside it in the Layers panel; the caret comes back over the words with the font and colour they were set in. Emptying the text removes the layer.
 * Brush and eraser opacity now applies to the whole stroke, not to every dab. An eraser at 20% takes 20% of what is under it however slowly you drag; it used to reach 100% within a second because overlapping dabs compounded.
 * Saved copies open again with their layers. Painted, pasted and dropped layers travel with the save as files of their own, and text layers are drawn again from their words, so re-opening a copy shows the layer stack you left rather than a flattened image. Only a layer too large for the site to accept still bakes in, and the editor says so.
 * Layers have an Opacity slider in the Layers panel, for the layer you are working on; a faded layer shows its percentage beside its name.
 * Changing the colour, font or weight while typing no longer finishes the text: the options bar restyles the caret live.
+* The Brush panel's Retouching and Fill headings are panel subheadings again, holding their controls, instead of full-size shell sections over an empty box.
 * Runs as an OpenStation App Framework app on a shell that has the framework, and registers its window directly on one that does not.
 
 = 1.0.1
