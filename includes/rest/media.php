@@ -79,6 +79,15 @@ function lienzo_rest_get_media( $request ) {
 		'schema'    => lienzo_op_schema(),
 	);
 
+	// Where each painted layer's pixels can be fetched back, for a copy saved with
+	// them. Absent rather than empty when there are none, so a client reading an
+	// older payload and a newer one see the same shape.
+	$layer_urls = lienzo_layer_urls( $attachment_id );
+
+	if ( ! empty( $layer_urls ) ) {
+		$payload['layers'] = $layer_urls;
+	}
+
 	/**
 	 * Filters the payload describing an image opened in the editor.
 	 *
@@ -91,6 +100,34 @@ function lienzo_rest_get_media( $request ) {
 	$payload = apply_filters( 'lienzo_rest_media_payload', $payload, $attachment_id, $source_id );
 
 	return rest_ensure_response( $payload );
+}
+
+/**
+ * GET /lienzo/v1/media/<id>/layers/<layer>
+ *
+ * Streams one saved layer's pixels.
+ *
+ * Through a route rather than a plain upload URL for the same reason the source is:
+ * a site that offloads uploads to a CDN would otherwise hand the browser a cross-origin
+ * PNG, and a cross-origin texture taints every later read of the canvas.
+ *
+ * @since 1.1.0
+ *
+ * @param WP_REST_Request $request Incoming request.
+ * @return WP_REST_Response|WP_Error Streaming response, or error.
+ */
+function lienzo_rest_get_layer( $request ) {
+	$path = lienzo_layer_path( (int) $request['id'], (string) $request['layer'] );
+
+	if ( '' === $path ) {
+		return new WP_Error(
+			'lienzo_no_layer',
+			__( 'That layer was not saved with this image.', 'allterrain-photo-editor' ),
+			array( 'status' => 404 )
+		);
+	}
+
+	return lienzo_rest_stream_file( $path, 'image/png' );
 }
 
 /**
@@ -118,7 +155,20 @@ function lienzo_rest_get_source( $request ) {
 	}
 
 	$post = get_post( $attachment_id );
-	$mime = $post->post_mime_type;
+
+	return lienzo_rest_stream_file( $path, $post->post_mime_type );
+}
+
+/**
+ * Answers a REST request with a file's bytes rather than JSON.
+ *
+ * @since 1.1.0
+ *
+ * @param string $path Absolute path of a readable file.
+ * @param string $mime Its content type.
+ * @return WP_REST_Response Streaming response.
+ */
+function lienzo_rest_stream_file( $path, $mime ) {
 	$size = (int) filesize( $path );
 
 	add_filter(

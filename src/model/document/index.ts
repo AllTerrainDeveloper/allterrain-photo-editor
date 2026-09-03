@@ -33,13 +33,19 @@ export {
 export type { Rect } from './rect';
 export { centredCrop, clampRect } from './rect';
 
-export type { Layer, LayerKind } from './layers';
+export type { Layer, LayerKind, TextSource } from './layers';
 export {
 	BASE_LAYER_ID,
+	MAX_TEXT_LENGTH,
 	createImageLayer,
 	createRasterLayer,
+	createTextLayer,
 	findLayer,
+	isSafeLayerId,
+	newLayerId,
 	normaliseLayers,
+	normaliseTextSource,
 	reorderLayer,
+	replaceLayer,
 	updateLayer,
 } from './layers';

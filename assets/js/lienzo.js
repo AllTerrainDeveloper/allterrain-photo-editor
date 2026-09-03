@@ -1,5 +1,287 @@
 var lienzo = function(exports) {
   "use strict";
+  const IDENTITY_TRANSFORM = {
+    x: 0.5,
+    y: 0.5,
+    scaleX: 1,
+    scaleY: 1,
+    rotation: 0,
+    flipH: false,
+    flipV: false
+  };
+  const MIN_SCALE = 0.02;
+  const MAX_SCALE = 20;
+  function isIdentityTransform(transform) {
+    const e = 1e-4;
+    return Math.abs(transform.x - 0.5) < e && Math.abs(transform.y - 0.5) < e && Math.abs(transform.scaleX - 1) < e && Math.abs(transform.scaleY - 1) < e && Math.abs(transform.rotation) < e && !transform.flipH && !transform.flipV;
+  }
+  function clampTransform(transform) {
+    const axis = (value) => Math.min(
+      MAX_SCALE,
+      Math.max(MIN_SCALE, Number.isFinite(value) ? value : 1)
+    );
+    return {
+      x: Number.isFinite(transform.x) ? transform.x : 0.5,
+      y: Number.isFinite(transform.y) ? transform.y : 0.5,
+      scaleX: axis(transform.scaleX),
+      scaleY: axis(transform.scaleY),
+      rotation: Number.isFinite(transform.rotation) ? normaliseAngle(transform.rotation) : 0,
+      flipH: transform.flipH === true,
+      flipV: transform.flipV === true
+    };
+  }
+  function normaliseAngle(degrees) {
+    let angle = degrees % 360;
+    if (angle > 180) {
+      angle -= 360;
+    }
+    if (angle <= -180) {
+      angle += 360;
+    }
+    return angle;
+  }
+  function layerSize(source, transform) {
+    return {
+      width: source.width * transform.scaleX,
+      height: source.height * transform.scaleY
+    };
+  }
+  function layerBounds(source, transform, canvas) {
+    const size = layerSize(source, transform);
+    const radians = transform.rotation * Math.PI / 180;
+    const cos = Math.abs(Math.cos(radians));
+    const sin = Math.abs(Math.sin(radians));
+    const width = size.width * cos + size.height * sin;
+    const height = size.width * sin + size.height * cos;
+    return {
+      x: transform.x * canvas.width - width / 2,
+      y: transform.y * canvas.height - height / 2,
+      width,
+      height
+    };
+  }
+  function normaliseTransform(raw) {
+    if (!raw || typeof raw !== "object") {
+      return { ...IDENTITY_TRANSFORM };
+    }
+    const input = raw;
+    const legacy = raw.scale;
+    const uniform = Number.isFinite(Number(legacy)) ? Number(legacy) : 1;
+    return clampTransform({
+      x: Number(input.x ?? 0.5),
+      y: Number(input.y ?? 0.5),
+      scaleX: Number(input.scaleX ?? uniform),
+      scaleY: Number(input.scaleY ?? uniform),
+      rotation: Number(input.rotation ?? 0),
+      flipH: input.flipH === true,
+      flipV: input.flipV === true
+    });
+  }
+  const MIN_CANVAS = 16;
+  function isNativeCanvas(canvas, source) {
+    return Math.abs(canvas.width - source.width) < 1 && Math.abs(canvas.height - source.height) < 1;
+  }
+  function clampCanvas(canvas, maxPixels) {
+    let width = Math.max(MIN_CANVAS, Math.round(canvas.width) || MIN_CANVAS);
+    let height = Math.max(MIN_CANVAS, Math.round(canvas.height) || MIN_CANVAS);
+    const total = width * height;
+    if (total > maxPixels) {
+      const factor = Math.sqrt(maxPixels / total);
+      width = Math.max(MIN_CANVAS, Math.floor(width * factor));
+      height = Math.max(MIN_CANVAS, Math.floor(height * factor));
+    }
+    return { width, height };
+  }
+  function fitScale$1(source, canvas) {
+    if (source.width <= 0 || source.height <= 0) {
+      return 1;
+    }
+    return Math.min(canvas.width / source.width, canvas.height / source.height);
+  }
+  function coverScale(source, canvas) {
+    if (source.width <= 0 || source.height <= 0) {
+      return 1;
+    }
+    return Math.max(canvas.width / source.width, canvas.height / source.height);
+  }
+  function applyCrop(canvas, transform, rect) {
+    const next = {
+      width: Math.max(MIN_CANVAS, Math.round(canvas.width * rect.w)),
+      height: Math.max(MIN_CANVAS, Math.round(canvas.height * rect.h))
+    };
+    const centreX = transform.x * canvas.width - rect.x * canvas.width;
+    const centreY = transform.y * canvas.height - rect.y * canvas.height;
+    return {
+      canvas: next,
+      transform: {
+        ...transform,
+        x: centreX / (canvas.width * rect.w),
+        y: centreY / (canvas.height * rect.h)
+      }
+    };
+  }
+  function resizeCanvas(canvas, transform, next, anchor = { x: 0.5, y: 0.5 }) {
+    const offsetX = (next.width - canvas.width) * anchor.x;
+    const offsetY = (next.height - canvas.height) * anchor.y;
+    const centreX = transform.x * canvas.width + offsetX;
+    const centreY = transform.y * canvas.height + offsetY;
+    return {
+      canvas: next,
+      transform: {
+        ...transform,
+        x: next.width === 0 ? 0.5 : centreX / next.width,
+        y: next.height === 0 ? 0.5 : centreY / next.height
+      }
+    };
+  }
+  function normaliseCanvas(raw, fallback) {
+    if (!raw || typeof raw !== "object") {
+      return { ...fallback };
+    }
+    const input = raw;
+    const width = Number(input.width);
+    const height = Number(input.height);
+    if (!Number.isFinite(width) || !Number.isFinite(height)) {
+      return { ...fallback };
+    }
+    if (width <= 0 || height <= 0) {
+      return { width: 0, height: 0 };
+    }
+    return {
+      width: Math.max(MIN_CANVAS, Math.round(width)),
+      height: Math.max(MIN_CANVAS, Math.round(height))
+    };
+  }
+  function centredCrop(aspect, canvasAspect) {
+    if (!Number.isFinite(aspect) || aspect <= 0) {
+      return { x: 0, y: 0, w: 1, h: 1 };
+    }
+    const relative = aspect / canvasAspect;
+    if (relative >= 1) {
+      const h = 1 / relative;
+      return { x: 0, y: (1 - h) / 2, w: 1, h };
+    }
+    return { x: (1 - relative) / 2, y: 0, w: relative, h: 1 };
+  }
+  function clampRect(rect) {
+    const min = 0.01;
+    const w = Math.min(1, Math.max(min, rect.w));
+    const h = Math.min(1, Math.max(min, rect.h));
+    return {
+      x: Math.min(1 - w, Math.max(0, rect.x)),
+      y: Math.min(1 - h, Math.max(0, rect.y)),
+      w,
+      h
+    };
+  }
+  const BASE_LAYER_ID = "base";
+  const MAX_TEXT_LENGTH = 5e3;
+  function createImageLayer(name) {
+    return {
+      id: BASE_LAYER_ID,
+      name,
+      kind: "image",
+      transform: { ...IDENTITY_TRANSFORM },
+      visible: true,
+      opacity: 1
+    };
+  }
+  function newLayerId() {
+    return `layer-${Math.random().toString(36).slice(2, 10)}`;
+  }
+  function createRasterLayer(name, transform = {}) {
+    return {
+      id: newLayerId(),
+      name,
+      kind: "raster",
+      transform: { ...IDENTITY_TRANSFORM, ...transform },
+      visible: true,
+      opacity: 1
+    };
+  }
+  function createTextLayer(name, source, transform = {}) {
+    return {
+      id: newLayerId(),
+      name,
+      kind: "text",
+      transform: { ...IDENTITY_TRANSFORM, ...transform },
+      visible: true,
+      opacity: 1,
+      text: normaliseTextSource(source) ?? source
+    };
+  }
+  function normaliseTextSource(raw) {
+    if (!raw || typeof raw !== "object") {
+      return null;
+    }
+    const input = raw;
+    if (typeof input.text !== "string") {
+      return null;
+    }
+    const text = input.text.replace(/[^\P{C}\n\t]/gu, "").slice(0, MAX_TEXT_LENGTH);
+    if (!text.trim()) {
+      return null;
+    }
+    const size = Number(input.size);
+    const strokeWidth = Number(input.strokeWidth ?? 0);
+    const colour = typeof input.colour === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(input.colour) ? input.colour : "#000000";
+    return {
+      text,
+      size: Number.isFinite(size) ? Math.min(2e3, Math.max(1, size)) : 72,
+      family: typeof input.family === "string" && input.family.trim() ? input.family.slice(0, 200) : "sans-serif",
+      colour,
+      bold: input.bold === true,
+      italic: input.italic === true,
+      strokeWidth: Number.isFinite(strokeWidth) ? Math.min(200, Math.max(0, strokeWidth)) : 0
+    };
+  }
+  function normaliseLayers(raw, fallback = "Image") {
+    if (!Array.isArray(raw) || raw.length === 0) {
+      return [createImageLayer(fallback)];
+    }
+    const layers = [];
+    for (const entry of raw) {
+      if (!entry || typeof entry !== "object") {
+        continue;
+      }
+      const layer = entry;
+      const opacity = Number(layer.opacity ?? 1);
+      const text = layer.kind === "text" ? normaliseTextSource(layer.text) : null;
+      const kind = layer.kind === "text" ? text ? "text" : "raster" : layer.kind === "raster" ? "raster" : "image";
+      layers.push({
+        id: typeof layer.id === "string" && layer.id ? layer.id : newLayerId(),
+        name: typeof layer.name === "string" ? layer.name : fallback,
+        kind,
+        transform: normaliseTransform(layer.transform),
+        visible: layer.visible !== false,
+        opacity: Number.isFinite(opacity) ? Math.min(1, Math.max(0, opacity)) : 1,
+        ...text ? { text } : {}
+      });
+    }
+    return layers.length > 0 ? layers : [createImageLayer(fallback)];
+  }
+  function findLayer(layers, id) {
+    return layers.find((layer) => layer.id === id);
+  }
+  function updateLayer(layers, id, patch) {
+    return layers.map(
+      (layer) => layer.id === id ? { ...layer, ...patch } : layer
+    );
+  }
+  function replaceLayer(layers, id, replacement) {
+    return layers.map((layer) => layer.id === id ? replacement : layer);
+  }
+  function reorderLayer(layers, id, direction) {
+    const index = layers.findIndex((layer) => layer.id === id);
+    const target = index + direction;
+    if (index === -1 || target < 0 || target >= layers.length) {
+      return layers;
+    }
+    const next = [...layers];
+    const [moved] = next.splice(index, 1);
+    next.splice(target, 0, moved);
+    return next;
+  }
   const PREFIXES = ["os", "wpd"];
   function desktop$1() {
     const wp = window.wp;
@@ -140,14 +422,22 @@ var lienzo = function(exports) {
      * PNG can be tens of megabytes, and base64 would inflate that by a third before
      * it ever reached the wire.
      *
+     * The painted layers ride along as PNGs of their own, one per layer, so the copy
+     * can be opened again with its layers intact rather than baked in. Without them
+     * the server stores the copy flattened, exactly as it did before they travelled.
+     *
      * @param attachmentId Attachment the edit was rendered from.
      * @param blob         Encoded image.
      * @param recipe       The edit, for storage alongside the result.
+     * @param layers       Optional. Each raster layer's pixels, keyed by layer id.
      */
-    async saveRender(attachmentId, blob, recipe) {
+    async saveRender(attachmentId, blob, recipe, layers = []) {
       const body = new FormData();
       body.append("file", blob, "render");
       body.append("recipe", JSON.stringify(recipe));
+      for (const layer of layers) {
+        body.append(`layers[${layer.id}]`, layer.blob, `${layer.id}.png`);
+      }
       const response = await request(
         `${this.config.restUrl}media/${attachmentId}/render`,
         {
@@ -214,7 +504,18 @@ var lienzo = function(exports) {
      * @param sourceUrl Absolute URL of the `/source` route.
      */
     async getSourceBlob(sourceUrl) {
-      const response = await request(sourceUrl, {
+      return this.getBlob(sourceUrl);
+    }
+    /**
+     * Fetches bytes from one of this plugin's routes, with the nonce along.
+     *
+     * Through `fetch` rather than an `<img>` because a REST route without the nonce is
+     * an anonymous request, and anonymous requests may not read a layer's pixels.
+     *
+     * @param url Absolute URL of the route.
+     */
+    async getBlob(url) {
+      const response = await request(url, {
         credentials: "same-origin",
         headers: this.headers()
       });
@@ -263,222 +564,6 @@ var lienzo = function(exports) {
         throw await toError(response);
       }
     }
-  }
-  const IDENTITY_TRANSFORM = {
-    x: 0.5,
-    y: 0.5,
-    scaleX: 1,
-    scaleY: 1,
-    rotation: 0,
-    flipH: false,
-    flipV: false
-  };
-  const MIN_SCALE = 0.02;
-  const MAX_SCALE = 20;
-  function isIdentityTransform(transform) {
-    const e = 1e-4;
-    return Math.abs(transform.x - 0.5) < e && Math.abs(transform.y - 0.5) < e && Math.abs(transform.scaleX - 1) < e && Math.abs(transform.scaleY - 1) < e && Math.abs(transform.rotation) < e && !transform.flipH && !transform.flipV;
-  }
-  function clampTransform(transform) {
-    const axis = (value) => Math.min(
-      MAX_SCALE,
-      Math.max(MIN_SCALE, Number.isFinite(value) ? value : 1)
-    );
-    return {
-      x: Number.isFinite(transform.x) ? transform.x : 0.5,
-      y: Number.isFinite(transform.y) ? transform.y : 0.5,
-      scaleX: axis(transform.scaleX),
-      scaleY: axis(transform.scaleY),
-      rotation: Number.isFinite(transform.rotation) ? normaliseAngle(transform.rotation) : 0,
-      flipH: transform.flipH === true,
-      flipV: transform.flipV === true
-    };
-  }
-  function normaliseAngle(degrees) {
-    let angle = degrees % 360;
-    if (angle > 180) {
-      angle -= 360;
-    }
-    if (angle <= -180) {
-      angle += 360;
-    }
-    return angle;
-  }
-  function normaliseTransform(raw) {
-    if (!raw || typeof raw !== "object") {
-      return { ...IDENTITY_TRANSFORM };
-    }
-    const input = raw;
-    const legacy = raw.scale;
-    const uniform = Number.isFinite(Number(legacy)) ? Number(legacy) : 1;
-    return clampTransform({
-      x: Number(input.x ?? 0.5),
-      y: Number(input.y ?? 0.5),
-      scaleX: Number(input.scaleX ?? uniform),
-      scaleY: Number(input.scaleY ?? uniform),
-      rotation: Number(input.rotation ?? 0),
-      flipH: input.flipH === true,
-      flipV: input.flipV === true
-    });
-  }
-  const MIN_CANVAS = 16;
-  function isNativeCanvas(canvas, source) {
-    return Math.abs(canvas.width - source.width) < 1 && Math.abs(canvas.height - source.height) < 1;
-  }
-  function clampCanvas(canvas, maxPixels) {
-    let width = Math.max(MIN_CANVAS, Math.round(canvas.width) || MIN_CANVAS);
-    let height = Math.max(MIN_CANVAS, Math.round(canvas.height) || MIN_CANVAS);
-    const total = width * height;
-    if (total > maxPixels) {
-      const factor = Math.sqrt(maxPixels / total);
-      width = Math.max(MIN_CANVAS, Math.floor(width * factor));
-      height = Math.max(MIN_CANVAS, Math.floor(height * factor));
-    }
-    return { width, height };
-  }
-  function fitScale$1(source, canvas) {
-    if (source.width <= 0 || source.height <= 0) {
-      return 1;
-    }
-    return Math.min(canvas.width / source.width, canvas.height / source.height);
-  }
-  function coverScale(source, canvas) {
-    if (source.width <= 0 || source.height <= 0) {
-      return 1;
-    }
-    return Math.max(canvas.width / source.width, canvas.height / source.height);
-  }
-  function applyCrop(canvas, transform, rect) {
-    const next = {
-      width: Math.max(MIN_CANVAS, Math.round(canvas.width * rect.w)),
-      height: Math.max(MIN_CANVAS, Math.round(canvas.height * rect.h))
-    };
-    const centreX = transform.x * canvas.width - rect.x * canvas.width;
-    const centreY = transform.y * canvas.height - rect.y * canvas.height;
-    return {
-      canvas: next,
-      transform: {
-        ...transform,
-        x: centreX / (canvas.width * rect.w),
-        y: centreY / (canvas.height * rect.h)
-      }
-    };
-  }
-  function resizeCanvas(canvas, transform, next, anchor = { x: 0.5, y: 0.5 }) {
-    const offsetX = (next.width - canvas.width) * anchor.x;
-    const offsetY = (next.height - canvas.height) * anchor.y;
-    const centreX = transform.x * canvas.width + offsetX;
-    const centreY = transform.y * canvas.height + offsetY;
-    return {
-      canvas: next,
-      transform: {
-        ...transform,
-        x: next.width === 0 ? 0.5 : centreX / next.width,
-        y: next.height === 0 ? 0.5 : centreY / next.height
-      }
-    };
-  }
-  function normaliseCanvas(raw, fallback) {
-    if (!raw || typeof raw !== "object") {
-      return { ...fallback };
-    }
-    const input = raw;
-    const width = Number(input.width);
-    const height = Number(input.height);
-    if (!Number.isFinite(width) || !Number.isFinite(height)) {
-      return { ...fallback };
-    }
-    if (width <= 0 || height <= 0) {
-      return { width: 0, height: 0 };
-    }
-    return {
-      width: Math.max(MIN_CANVAS, Math.round(width)),
-      height: Math.max(MIN_CANVAS, Math.round(height))
-    };
-  }
-  function centredCrop(aspect, canvasAspect) {
-    if (!Number.isFinite(aspect) || aspect <= 0) {
-      return { x: 0, y: 0, w: 1, h: 1 };
-    }
-    const relative = aspect / canvasAspect;
-    if (relative >= 1) {
-      const h = 1 / relative;
-      return { x: 0, y: (1 - h) / 2, w: 1, h };
-    }
-    return { x: (1 - relative) / 2, y: 0, w: relative, h: 1 };
-  }
-  function clampRect(rect) {
-    const min = 0.01;
-    const w = Math.min(1, Math.max(min, rect.w));
-    const h = Math.min(1, Math.max(min, rect.h));
-    return {
-      x: Math.min(1 - w, Math.max(0, rect.x)),
-      y: Math.min(1 - h, Math.max(0, rect.y)),
-      w,
-      h
-    };
-  }
-  const BASE_LAYER_ID = "base";
-  function createImageLayer(name) {
-    return {
-      id: BASE_LAYER_ID,
-      name,
-      kind: "image",
-      transform: { ...IDENTITY_TRANSFORM },
-      visible: true,
-      opacity: 1
-    };
-  }
-  function createRasterLayer(name, transform = {}) {
-    return {
-      id: `layer-${Math.random().toString(36).slice(2, 10)}`,
-      name,
-      kind: "raster",
-      transform: { ...IDENTITY_TRANSFORM, ...transform },
-      visible: true,
-      opacity: 1
-    };
-  }
-  function normaliseLayers(raw, fallback = "Image") {
-    if (!Array.isArray(raw) || raw.length === 0) {
-      return [createImageLayer(fallback)];
-    }
-    const layers = [];
-    for (const entry of raw) {
-      if (!entry || typeof entry !== "object") {
-        continue;
-      }
-      const layer = entry;
-      const opacity = Number(layer.opacity ?? 1);
-      layers.push({
-        id: typeof layer.id === "string" && layer.id ? layer.id : createRasterLayer("").id,
-        name: typeof layer.name === "string" ? layer.name : fallback,
-        kind: layer.kind === "raster" ? "raster" : "image",
-        transform: normaliseTransform(layer.transform),
-        visible: layer.visible !== false,
-        opacity: Number.isFinite(opacity) ? Math.min(1, Math.max(0, opacity)) : 1
-      });
-    }
-    return layers.length > 0 ? layers : [createImageLayer(fallback)];
-  }
-  function findLayer(layers, id) {
-    return layers.find((layer) => layer.id === id);
-  }
-  function updateLayer(layers, id, patch) {
-    return layers.map(
-      (layer) => layer.id === id ? { ...layer, ...patch } : layer
-    );
-  }
-  function reorderLayer(layers, id, direction) {
-    const index = layers.findIndex((layer) => layer.id === id);
-    const target = index + direction;
-    if (index === -1 || target < 0 || target >= layers.length) {
-      return layers;
-    }
-    const next = [...layers];
-    const [moved] = next.splice(index, 1);
-    next.splice(target, 0, moved);
-    return next;
   }
   const LUMA_R = 0.2126;
   const LUMA_G = 0.7152;
@@ -977,7 +1062,7 @@ var lienzo = function(exports) {
     const activeLayerId = active2 && stack.some((layer) => layer.id === active2) ? active2 : stack.some((layer) => layer.id === recipe.activeLayerId) ? recipe.activeLayerId : stack[stack.length - 1].id;
     return { ...recipe, layers: stack, activeLayerId };
   }
-  function activeLayer(recipe) {
+  function activeLayer$1(recipe) {
     return findLayer(recipe.layers, recipe.activeLayerId) ?? recipe.layers[0];
   }
   function setDocument(recipe, canvas, transform) {
@@ -1854,8 +1939,10 @@ fn mainFragment(
      * @param canvas Output surface size.
      * @param stack  Layers, back to front.
      * @param source The loaded image, which backs the base layer.
+     * @param hidden Optional. A layer to leave out without changing the document --
+     *               the text layer whose words are being retyped on top of it.
      */
-    compose(canvas, stack, source) {
+    compose(canvas, stack, source, hidden = null) {
       this.release();
       if (!source || canvas.width <= 0 || canvas.height <= 0) {
         return;
@@ -1867,7 +1954,7 @@ fn mainFragment(
       const holder = this.gpu.container();
       for (const layer of stack) {
         const texture = this.layers.get(layer.id);
-        if (!texture || !layer.visible || layer.opacity <= 0) {
+        if (!texture || !layer.visible || layer.opacity <= 0 || layer.id === hidden) {
           continue;
         }
         const sprite = this.gpu.sprite(texture);
@@ -2381,24 +2468,17 @@ fn mainFragment(
       target?.destroy(true);
     }
   }
-  function stampBrush(ctx, options) {
-    const target = ctx.layers.ensurePaintable(options.layerId, ctx.canvas);
+  function dabSprite(ctx, options) {
     const texture = ctx.gpu.textureFrom(options.image);
     const sprite = ctx.gpu.sprite(texture);
     sprite.anchor.set(0.5);
     sprite.width = options.size;
     sprite.height = options.size;
     sprite.position.set(options.x, options.y);
-    sprite.alpha = options.opacity;
-    if (options.erase) {
-      sprite.blendMode = "erase";
-    } else {
+    if (!options.erase) {
       sprite.tint = options.colour;
     }
-    const clip = ctx.layers.clip(sprite);
-    ctx.gpu.draw(clip.container, target);
-    clip.release();
-    texture.destroy(true);
+    return { sprite, release: () => texture.destroy(true) };
   }
   function fillWithMask(ctx, layerId, mask, colour, opacity, x = 0, y = 0) {
     const target = ctx.layers.ensurePaintable(layerId, ctx.canvas);
@@ -2426,8 +2506,8 @@ fn mainFragment(
     clip.release();
     texture.destroy(true);
   }
-  function extractLayerRegion(ctx, layerId, rect) {
-    const texture = ctx.layers.get(layerId);
+  function extractLayerRegion(ctx, layerId, rect, source) {
+    const texture = source ?? ctx.layers.get(layerId);
     if (!texture || rect.width < 1 || rect.height < 1) {
       return null;
     }
@@ -2456,11 +2536,49 @@ fn mainFragment(
       texture.destroy(true);
     }
   }
+  function beginStroke(gpu, layers, layerId, canvas, opacity, erase) {
+    const target = layers.ensurePaintable(layerId, canvas);
+    const base = gpu.createTarget(target.width, target.height);
+    const snapshot = gpu.sprite(target);
+    gpu.draw(snapshot, base, true);
+    snapshot.destroy();
+    return {
+      layerId,
+      opacity: Math.min(1, Math.max(0, opacity)),
+      erase,
+      base,
+      buffer: gpu.createTarget(target.width, target.height),
+      target
+    };
+  }
+  function stampIntoStroke(gpu, layers, stroke, sprite) {
+    sprite.alpha = 1;
+    const clip = layers.clip(sprite);
+    gpu.draw(clip.container, stroke.buffer);
+    clip.release();
+  }
+  function flushStroke(gpu, stroke) {
+    const base = gpu.sprite(stroke.base);
+    gpu.draw(base, stroke.target, true);
+    base.destroy();
+    const overlay = gpu.sprite(stroke.buffer);
+    overlay.alpha = stroke.opacity;
+    if (stroke.erase) {
+      overlay.blendMode = "erase";
+    }
+    gpu.drawDetached(overlay, stroke.target);
+  }
+  function releaseStroke(stroke) {
+    stroke.base.destroy(true);
+    stroke.buffer.destroy(true);
+  }
   class PaintApi {
     /**
      * @param host Renderer internals the operations run against.
      */
     constructor(host) {
+      this.stroke = null;
+      this.flushQueued = false;
       this.host = host;
     }
     /** The context every operation runs in. */
@@ -2478,6 +2596,7 @@ fn mainFragment(
      * @param source Decoded pixels.
      */
     addRasterTexture(id, source) {
+      this.endStroke();
       this.host.layers.addRaster(id, source);
     }
     /**
@@ -2497,11 +2616,20 @@ fn mainFragment(
       return this.host.layers.sizeOf(id);
     }
     /**
+     * Whether a layer has any pixels at all.
+     *
+     * @param id Layer id.
+     */
+    hasTexture(id) {
+      return this.host.layers.has(id);
+    }
+    /**
      * Sets the mask confining every paint operation.
      *
      * @param mask Canvas-sized alpha mask, or null for no confinement.
      */
     setPaintMask(mask) {
+      this.endStroke();
       this.host.layers.setMask(mask);
     }
     /**
@@ -2515,11 +2643,17 @@ fn mainFragment(
      * @param container What to draw.
      */
     paintInto(id, container) {
+      this.endStroke();
       this.host.gpu.draw(container, this.ensurePaintTexture(id));
       this.host.onChange();
     }
     /**
      * Stamps one brush dab into a layer.
+     *
+     * The first dab opens a stroke and every dab after it joins the same one, until
+     * `endStroke()` closes it. Within a stroke the opacity applies to the whole stroke:
+     * a dab laid over another does not darken it, and a 20% eraser dragged back and
+     * forth still leaves 80% of what was there -- see `stroke-buffer.ts`.
      *
      * @param layerId Target layer.
      * @param image   Stamp canvas, white with its shape in the alpha.
@@ -2527,21 +2661,76 @@ fn mainFragment(
      * @param y       Canvas coordinates of the dab centre.
      * @param size    Diameter in canvas pixels.
      * @param colour  CSS colour.
-     * @param opacity 0..1.
+     * @param opacity Stroke opacity, 0..1.
      * @param erase   Whether to remove rather than add.
      */
     stampBrush(layerId, image, x, y, size, colour, opacity, erase) {
-      stampBrush(this.ctx, {
-        layerId,
+      const current = this.stroke;
+      if (current && (current.layerId !== layerId || current.erase !== erase || current.opacity !== opacity)) {
+        this.endStroke();
+      }
+      if (!this.stroke) {
+        this.stroke = beginStroke(
+          this.host.gpu,
+          this.host.layers,
+          layerId,
+          this.host.canvas(),
+          opacity,
+          erase
+        );
+      }
+      const dab = dabSprite(this.ctx, {
         image,
         x,
         y,
         size,
         colour,
-        opacity,
         erase
       });
+      stampIntoStroke(this.host.gpu, this.host.layers, this.stroke, dab.sprite);
+      dab.release();
+      this.scheduleFlush();
+    }
+    /**
+     * Rewrites the layer from the stroke at the end of the current task.
+     *
+     * A pointer event can carry a dozen interpolated dabs, and composing the layer
+     * after each one would cost a dozen full-canvas passes for one visible frame. Once
+     * per task is once per pointer event, which is as often as anything can be seen.
+     */
+    scheduleFlush() {
+      if (this.flushQueued) {
+        return;
+      }
+      this.flushQueued = true;
+      queueMicrotask(() => {
+        this.flushQueued = false;
+        if (this.stroke) {
+          flushStroke(this.host.gpu, this.stroke);
+          this.host.onChange();
+        }
+      });
+    }
+    /**
+     * Closes the stroke in progress, leaving the layer holding its result.
+     *
+     * Safe to call when there is none. Every operation that touches a layer's pixels
+     * some other way calls this first, so a stroke can never be half-applied under a
+     * fill, a paste or an undo.
+     */
+    endStroke() {
+      const stroke = this.stroke;
+      if (!stroke) {
+        return;
+      }
+      this.stroke = null;
+      flushStroke(this.host.gpu, stroke);
+      releaseStroke(stroke);
       this.host.onChange();
+    }
+    /** Whether a brush stroke is being laid down right now. */
+    get isStroking() {
+      return this.stroke !== null;
     }
     /**
      * Paints a mask into a layer.
@@ -2554,6 +2743,7 @@ fn mainFragment(
      * @param y       Where the mask's top-left corner sits, in canvas pixels.
      */
     fillWithMask(layerId, mask, colour, opacity, x = 0, y = 0) {
+      this.endStroke();
       fillWithMask(this.ctx, layerId, mask, colour, opacity, x, y);
       this.host.onChange();
     }
@@ -2568,17 +2758,57 @@ fn mainFragment(
      * @param erase   Whether to cut the shape out rather than draw it.
      */
     compositeCanvas(layerId, source, x = 0, y = 0, opacity = 1, erase = false) {
+      this.endStroke();
       compositeCanvas(this.ctx, layerId, source, x, y, opacity, erase);
       this.host.onChange();
     }
     /**
      * Reads one rectangle of a layer's pixels.
      *
+     * During a stroke on that layer the read comes from the snapshot the stroke keeps,
+     * so undo captures the pixels as they were before the brush touched them.
+     *
      * @param layerId Layer to read.
      * @param rect    Region, in canvas pixels.
      */
     extractLayerRegion(layerId, rect) {
-      return extractLayerRegion(this.ctx, layerId, rect);
+      const source = this.stroke && this.stroke.layerId === layerId ? this.stroke.base : void 0;
+      return extractLayerRegion(this.ctx, layerId, rect, source);
+    }
+    /**
+     * Reads a whole layer back as a canvas, for saving its pixels.
+     *
+     * @param layerId Layer to read.
+     * @return The pixels, or null when the layer has no texture.
+     */
+    extractLayerCanvas(layerId) {
+      this.endStroke();
+      const gpu = this.host.gpu;
+      const texture = this.host.layers.get(layerId);
+      if (!texture) {
+        return null;
+      }
+      const resolved = gpu.isTarget(texture) ? gpu.resolve(texture) : { texture, owned: false };
+      try {
+        return gpu.extractCanvas(resolved.texture);
+      } finally {
+        if (resolved.owned) {
+          resolved.texture.destroy(true);
+        }
+      }
+    }
+    /**
+     * Encodes a layer's pixels as a PNG.
+     *
+     * PNG regardless of the document's output format: a layer is mostly transparent,
+     * and its pixels have to come back exactly, not approximately.
+     *
+     * @param layerId Layer to encode.
+     * @return The encoded pixels, or null when the layer has none.
+     */
+    async exportLayer(layerId) {
+      const canvas = this.extractLayerCanvas(layerId);
+      return canvas ? encodeCanvas(canvas, "image/png", 1) : null;
     }
     /**
      * Puts one rectangle of a layer back to a previous state.
@@ -2588,8 +2818,21 @@ fn mainFragment(
      * @param pixels  What to put there, or null to leave it empty.
      */
     restoreLayerRegion(layerId, rect, pixels) {
+      this.endStroke();
       restoreLayerRegion(this.ctx, layerId, rect, pixels);
       this.host.onChange();
+    }
+    /**
+     * Drops a stroke in progress without writing it.
+     *
+     * For teardown, where the GPU is about to go and drawing into it would be wasted.
+     */
+    dispose() {
+      const stroke = this.stroke;
+      this.stroke = null;
+      if (stroke) {
+        releaseStroke(stroke);
+      }
     }
   }
   class ScreenFilters {
@@ -3361,12 +3604,15 @@ fn mainFragment(
       holder.destroy({ children: true });
     }
     /**
-     * Reads a target back as a canvas.
+     * Reads a texture back as a canvas.
      *
-     * @param target Texture to read.
+     * Any texture, not only a render target: a pasted layer's pixels sit in a plain
+     * texture, and saving them beside the recipe has to read those too.
+     *
+     * @param texture Texture to read.
      */
-    extractCanvas(target) {
-      return this.app.renderer.extract.canvas(target);
+    extractCanvas(texture) {
+      return this.app.renderer.extract.canvas(texture);
     }
     /**
      * Reads a target back as raw bytes.
@@ -3419,6 +3665,7 @@ fn mainFragment(
     }
   }
   function releaseImage(engine, sprite, texture) {
+    engine.paint.dispose();
     engine.compositor.release();
     engine.layers.releaseAll();
     engine.filters.release();
@@ -3463,6 +3710,7 @@ fn mainFragment(
       this.sprite = null;
       this.canvas = { width: 0, height: 0 };
       this.stack = [];
+      this.hidden = null;
       this.destroyed = false;
       this.gpu = gpu;
       this.maxRenderPixels = options.maxRenderPixels;
@@ -3507,7 +3755,7 @@ fn mainFragment(
      * current zoom calls for is re-applied rather than waiting for the next fit.
      */
     recompose() {
-      this.pixels.compose(this.canvas, this.stack, this.texture);
+      this.pixels.compose(this.canvas, this.stack, this.texture, this.hidden);
       if (this.sprite) {
         const texture = this.displayTexture();
         if (texture) {
@@ -3550,6 +3798,21 @@ fn mainFragment(
       this.activeLayerId = activeLayerId;
       this.recompose();
       this.view.fit();
+    }
+    /**
+     * Leaves one layer out of the picture, or puts it back.
+     *
+     * Not a document change: the layer is still there, still visible as far as the
+     * recipe is concerned, and comes back the moment this is cleared.
+     *
+     * @param layerId Layer to hide, or null to hide none.
+     */
+    hideLayer(layerId) {
+      if (this.hidden === layerId) {
+        return;
+      }
+      this.hidden = layerId;
+      this.recompose();
     }
     /**
      * Frees textures for layers that can no longer come back.
@@ -3640,6 +3903,15 @@ fn mainFragment(
     renderFull(format, quality) {
       return renderFull(this.engine.offscreen, format, quality, this.maxRenderPixels);
     }
+    /**
+     * Encodes one layer's pixels as a PNG, for saving beside the recipe.
+     *
+     * @param layerId Layer to encode.
+     * @return The encoded pixels, or null when the layer has none.
+     */
+    exportLayer(layerId) {
+      return this.paint.exportLayer(layerId);
+    }
     /** Internal state, for diagnosing render problems from the console. */
     debugState() {
       return rendererDebugState({
@@ -3714,6 +3986,16 @@ fn mainFragment(
     } catch {
       URL.revokeObjectURL(url);
       throw new Error(`${file.name} could not be decoded.`);
+    }
+  }
+  async function loadImageBlob(blob) {
+    const url = URL.createObjectURL(blob);
+    try {
+      const image = await loadElement(url);
+      return { image, release: () => URL.revokeObjectURL(url), via: "proxy" };
+    } catch (error) {
+      URL.revokeObjectURL(url);
+      throw error;
     }
   }
   async function loadSourceImage(payload, client) {
@@ -5447,7 +5729,7 @@ fn mainFragment(
     let pendingHeight = ctx.getRecipe().canvas.height;
     const applySize = () => {
       const recipe = ctx.getRecipe();
-      const next = resizeCanvas(recipe.canvas, activeLayer(recipe).transform, {
+      const next = resizeCanvas(recipe.canvas, activeLayer$1(recipe).transform, {
         width: pendingWidth || recipe.canvas.width,
         height: pendingHeight || recipe.canvas.height
       });
@@ -5552,7 +5834,7 @@ fn mainFragment(
             const recipe = ctx.getRecipe();
             const next = applyCrop(
               recipe.canvas,
-              activeLayer(recipe).transform,
+              activeLayer$1(recipe).transform,
               overlay.getRect()
             );
             ctx.setDocument(next.canvas, next.transform, "crop");
@@ -5565,7 +5847,7 @@ fn mainFragment(
           onClick: () => {
             const recipe = ctx.getRecipe();
             const image = ctx.getImageSize();
-            const transform = activeLayer(recipe).transform;
+            const transform = activeLayer$1(recipe).transform;
             ctx.setDocument(
               {
                 width: Math.round(image.width * transform.scaleX),
@@ -5738,7 +6020,25 @@ fn mainFragment(
     const up = move("↑", __("Bring forward"), 1);
     const down = move("↓", __("Send backward"), -1);
     const handles = [eye, up, down];
-    row.append(eye.el, name, up.el, down.el);
+    if (layer.opacity < 1) {
+      const faded = document.createElement("span");
+      faded.className = "lz-layer__opacity";
+      faded.textContent = `${Math.round(layer.opacity * 100)}%`;
+      name.appendChild(faded);
+    }
+    row.append(eye.el, name);
+    if (layer.text) {
+      row.classList.add("is-text");
+      const edit = createIconButton({
+        glyph: "T",
+        label: __("Edit text"),
+        className: "lz-layer__edit",
+        onClick: () => ctx.editTextLayer(layer.id)
+      });
+      handles.push(edit);
+      row.appendChild(edit.el);
+    }
+    row.append(up.el, down.el);
     if (BASE_LAYER_ID !== layer.id) {
       const remove = createIconButton({
         glyph: "×",
@@ -5752,6 +6052,13 @@ fn mainFragment(
       row.appendChild(remove.el);
     }
     return { el: row, handles };
+  }
+  function activeLayer(ctx) {
+    const layers = ctx.getLayers();
+    return layers.find((layer) => layer.id === ctx.getActiveLayerId()) ?? layers[0];
+  }
+  function activeOpacity(ctx) {
+    return Math.round((activeLayer(ctx)?.opacity ?? 1) * 100);
   }
   function registerLayersPanel() {
     registerPanel({
@@ -5777,6 +6084,21 @@ fn mainFragment(
             list.appendChild(row.el);
           }
         };
+        const opacity = createSlider({
+          label: __("Opacity"),
+          min: 0,
+          max: 100,
+          step: 1,
+          suffix: "%",
+          value: activeOpacity(ctx),
+          resetTo: 100,
+          onInput: (value) => ctx.setLayers(
+            updateLayer(ctx.getLayers(), ctx.getActiveLayerId(), {
+              opacity: Math.min(1, Math.max(0, value / 100))
+            })
+          )
+        });
+        opacity.el.classList.add("lz-layers__opacity");
         const add = createButton({
           label: __("Add layer"),
           variant: "secondary",
@@ -5785,14 +6107,18 @@ fn mainFragment(
         const hint = document.createElement("p");
         hint.className = "lz-hint";
         hint.textContent = __(
-          "Painted and pasted layers are pixels, not settings — save a copy to keep them."
+          "Layers travel with the saved copy: open it again and they are still here to edit."
         );
-        const off = ctx.onRecipeChange(draw);
+        const off = ctx.onRecipeChange(() => {
+          draw();
+          opacity.setValue(activeOpacity(ctx));
+        });
         draw();
-        host.append(list, add.el, hint);
+        host.append(list, opacity.el, add.el, hint);
         return () => {
           releaseRows();
           off();
+          opacity.destroy();
           add.destroy();
         };
       }
@@ -6516,7 +6842,7 @@ fn mainFragment(
     return { el, handles };
   }
   function rotateFlipRow(ctx) {
-    const current = () => activeLayer(ctx.getRecipe()).transform;
+    const current = () => activeLayer$1(ctx.getRecipe()).transform;
     const quarter = (direction) => {
       const layer = current();
       ctx.setLayer({
@@ -6544,7 +6870,7 @@ fn mainFragment(
       const recipe = ctx.getRecipe();
       const value = compute(ctx.getImageSize(), recipe.canvas);
       ctx.setLayer({
-        ...activeLayer(recipe).transform,
+        ...activeLayer$1(recipe).transform,
         scaleX: value,
         scaleY: value,
         x: 0.5,
@@ -6570,7 +6896,7 @@ fn mainFragment(
       getViewport: ctx.getViewport,
       getCanvas: () => ctx.getRecipe().canvas,
       getImageSize: ctx.getImageSize,
-      getTransform: () => activeLayer(ctx.getRecipe()).transform,
+      getTransform: () => activeLayer$1(ctx.getRecipe()).transform,
       // One label for the whole gesture, so History collapses it into a single undo
       // step rather than one per pointer move.
       onChange: (layer) => ctx.setLayer(layer, "transform-drag"),
@@ -6606,7 +6932,7 @@ fn mainFragment(
       defaultCollapsed: true,
       render: (host, ctx) => {
         const detachOverlay = attachOverlay(host, ctx);
-        const current = () => activeLayer(ctx.getRecipe()).transform;
+        const current = () => activeLayer$1(ctx.getRecipe()).transform;
         const rotation = createSlider({
           label: __("Rotation"),
           min: -180,
@@ -7686,14 +8012,14 @@ fn mainFragment(
     banner.addEventListener("dragend", () => bridge.end?.());
   }
   function registerNativeWindow() {
-    const render = (body, ctx) => renderWindow(body, ctx);
+    const render2 = (body, ctx) => renderWindow(body, ctx);
     for (const key of [
       "openStationNativeWindows",
       "desktopModeNativeWindows"
     ]) {
       const holder = window;
       holder[key] ?? (holder[key] = {});
-      holder[key][WINDOW_ID] = render;
+      holder[key][WINDOW_ID] = render2;
     }
   }
   function renderWindow(body, ctx) {
@@ -7842,8 +8168,8 @@ fn mainFragment(
     banner.append(
       document.createTextNode(
         result.flattened ? __(
-          "Saved a copy. Painted layers were baked into it, so re-opening shows those pixels rather than the sliders. "
-        ) : __("Saved a copy. ")
+          "Saved a copy. Its painted layers were too large to keep, so they were baked in; re-opening shows those pixels rather than the layers. "
+        ) : __("Saved a copy. Open it again and every layer is still there to edit. ")
       ),
       open2.el
     );
@@ -8038,6 +8364,7 @@ fn mainFragment(
       getActiveLayerId: () => store.current.activeLayerId,
       setLayers: (layers, activeId) => store.setLayers(layers, activeId),
       addLayer: deps.addLayer,
+      editTextLayer: deps.editTextLayer,
       getBrush: deps.getBrush,
       setBrush: deps.setBrush,
       getView: deps.getView,
@@ -8106,6 +8433,7 @@ fn mainFragment(
       getView: () => editor.state.getView(),
       setView: (patch) => editor.state.setView(patch),
       addLayer: () => addLayer(editor),
+      editTextLayer: (layerId) => void editor.editText(layerId),
       getViewport: () => editor.renderer?.view.viewport() ?? null,
       onViewportChange: (listener) => editor.renderer?.view.onChange(listener) ?? (() => {
       }),
@@ -8832,6 +9160,419 @@ fn mainFragment(
       this.store.setMeta({ ...patch, tiles: swapped });
     }
   }
+  const GRADIENT_KINDS = [
+    { value: "linear", label: "Linear" },
+    { value: "radial", label: "Radial" }
+  ];
+  const SHAPE_KINDS = [
+    { value: "rect", label: "Rectangle" },
+    { value: "rounded", label: "Rounded" },
+    { value: "ellipse", label: "Ellipse" },
+    { value: "line", label: "Line" },
+    { value: "triangle", label: "Triangle" },
+    { value: "star", label: "Star" }
+  ];
+  function rectFromDrag(from, to) {
+    return {
+      x: Math.min(from.x, to.x),
+      y: Math.min(from.y, to.y),
+      width: Math.abs(to.x - from.x),
+      height: Math.abs(to.y - from.y)
+    };
+  }
+  function squareDrag(from, to) {
+    const size = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+    return {
+      x: from.x + Math.sign(to.x - from.x || 1) * size,
+      y: from.y + Math.sign(to.y - from.y || 1) * size
+    };
+  }
+  function starPoints(rect, points = 5, inner = 0.5) {
+    const cx = rect.x + rect.width / 2;
+    const cy = rect.y + rect.height / 2;
+    const rx = rect.width / 2;
+    const ry = rect.height / 2;
+    const out = [];
+    for (let i = 0; i < points * 2; i++) {
+      const angle = i / (points * 2) * Math.PI * 2 - Math.PI / 2;
+      const scale = i % 2 === 0 ? 1 : inner;
+      out.push({
+        x: cx + Math.cos(angle) * rx * scale,
+        y: cy + Math.sin(angle) * ry * scale
+      });
+    }
+    return out;
+  }
+  function withAlpha(colour, alpha) {
+    const rgb = hexToRgb(colour);
+    if (!rgb) {
+      return colour;
+    }
+    return `rgba( ${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha} )`;
+  }
+  function hexToRgb(colour) {
+    const match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(colour.trim());
+    if (!match) {
+      return null;
+    }
+    const hex = match[1];
+    const full = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
+    return [
+      parseInt(full.slice(0, 2), 16),
+      parseInt(full.slice(2, 4), 16),
+      parseInt(full.slice(4, 6), 16)
+    ];
+  }
+  function rgbToHex(r, g, b) {
+    const byte = (value) => Math.min(255, Math.max(0, Math.round(value))).toString(16).padStart(2, "0");
+    return `#${byte(r)}${byte(g)}${byte(b)}`;
+  }
+  function makeCanvas(width, height) {
+    if (width < 1 || height < 1) {
+      return null;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(width);
+    canvas.height = Math.round(height);
+    const ctx = canvas.getContext("2d");
+    return ctx ? { canvas, ctx } : null;
+  }
+  function shapeCanvas(width, height, from, to, options) {
+    const surface = makeCanvas(width, height);
+    if (!surface) {
+      return null;
+    }
+    const { canvas, ctx } = surface;
+    const rect = rectFromDrag(from, to);
+    if (options.kind !== "line" && (rect.width < 1 || rect.height < 1)) {
+      return null;
+    }
+    ctx.beginPath();
+    switch (options.kind) {
+      case "rect":
+        ctx.rect(rect.x, rect.y, rect.width, rect.height);
+        break;
+      case "rounded": {
+        const radius = Math.min(
+          options.radius ?? 16,
+          rect.width / 2,
+          rect.height / 2
+        );
+        roundedRect(ctx, rect, radius);
+        break;
+      }
+      case "ellipse":
+        ctx.ellipse(
+          rect.x + rect.width / 2,
+          rect.y + rect.height / 2,
+          rect.width / 2,
+          rect.height / 2,
+          0,
+          0,
+          Math.PI * 2
+        );
+        break;
+      case "line":
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        break;
+      case "triangle":
+        ctx.moveTo(rect.x + rect.width / 2, rect.y);
+        ctx.lineTo(rect.x + rect.width, rect.y + rect.height);
+        ctx.lineTo(rect.x, rect.y + rect.height);
+        ctx.closePath();
+        break;
+      case "star":
+        starPoints(rect).forEach((point, index) => {
+          if (index === 0) {
+            ctx.moveTo(point.x, point.y);
+          } else {
+            ctx.lineTo(point.x, point.y);
+          }
+        });
+        ctx.closePath();
+        break;
+    }
+    if (options.style === "fill" && options.kind !== "line") {
+      ctx.fillStyle = options.colour;
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = options.colour;
+      ctx.lineWidth = Math.max(1, options.strokeWidth);
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.stroke();
+    }
+    return canvas;
+  }
+  function roundedRect(ctx, rect, radius) {
+    const r = Math.max(0, radius);
+    ctx.moveTo(rect.x + r, rect.y);
+    ctx.arcTo(rect.x + rect.width, rect.y, rect.x + rect.width, rect.y + rect.height, r);
+    ctx.arcTo(
+      rect.x + rect.width,
+      rect.y + rect.height,
+      rect.x,
+      rect.y + rect.height,
+      r
+    );
+    ctx.arcTo(rect.x, rect.y + rect.height, rect.x, rect.y, r);
+    ctx.arcTo(rect.x, rect.y, rect.x + rect.width, rect.y, r);
+    ctx.closePath();
+  }
+  function gradientCanvas(width, height, kind, from, to, start, end, fade = false) {
+    const surface = makeCanvas(width, height);
+    const span = Math.hypot(to.x - from.x, to.y - from.y);
+    if (!surface || span < 1) {
+      return null;
+    }
+    const { canvas, ctx } = surface;
+    const ramp = kind === "linear" ? ctx.createLinearGradient(from.x, from.y, to.x, to.y) : ctx.createRadialGradient(from.x, from.y, 0, from.x, from.y, span);
+    ramp.addColorStop(0, start);
+    ramp.addColorStop(1, fade ? withAlpha(start, 0) : end);
+    ctx.fillStyle = ramp;
+    ctx.fillRect(0, 0, width, height);
+    return canvas;
+  }
+  function textCanvas(options) {
+    const text = options.text.trim();
+    if (!text) {
+      return null;
+    }
+    const font = cssFont(options);
+    const measure = makeCanvas(1, 1);
+    if (!measure) {
+      return null;
+    }
+    measure.ctx.font = font;
+    const lines = options.text.split("\n");
+    const lineHeight = Math.ceil(options.size * 1.25);
+    const pad = Math.ceil((options.strokeWidth ?? 0) + options.size * 0.35);
+    const widest = Math.max(
+      1,
+      ...lines.map((line) => measure.ctx.measureText(line).width)
+    );
+    const surface = makeCanvas(
+      Math.ceil(widest) + pad * 2,
+      lineHeight * lines.length + pad * 2
+    );
+    if (!surface) {
+      return null;
+    }
+    const { canvas, ctx } = surface;
+    ctx.font = font;
+    ctx.textBaseline = "top";
+    ctx.fillStyle = options.colour;
+    ctx.strokeStyle = options.colour;
+    ctx.lineWidth = Math.max(1, options.strokeWidth ?? 1);
+    ctx.lineJoin = "round";
+    lines.forEach((line, index) => {
+      const y = pad + index * lineHeight;
+      if (options.strokeWidth) {
+        ctx.strokeText(line, pad, y);
+      } else {
+        ctx.fillText(line, pad, y);
+      }
+    });
+    return { canvas, offsetX: -pad, offsetY: -pad };
+  }
+  function cssFont(options) {
+    return [
+      options.italic ? "italic" : "",
+      options.bold ? "700" : "400",
+      `${Math.max(1, Math.round(options.size))}px`,
+      options.family || "sans-serif"
+    ].filter(Boolean).join(" ");
+  }
+  const FONT_STACKS = [
+    { value: "system-ui, sans-serif", label: "System" },
+    { value: "Helvetica, Arial, sans-serif", label: "Sans" },
+    { value: 'Georgia, "Times New Roman", serif', label: "Serif" },
+    { value: "ui-monospace, Menlo, Consolas, monospace", label: "Mono" }
+  ];
+  async function loadFullSize(url) {
+    const full = url.replace(/-\d+x\d+(\.[a-z0-9]+)(\?|#|$)/i, "$1$2");
+    if (full !== url) {
+      try {
+        return await loadImageUrl(full);
+      } catch {
+      }
+    }
+    return loadImageUrl(url);
+  }
+  function fileNameFromUrl(url) {
+    try {
+      const path = new URL(url, window.location.href).pathname;
+      return decodeURIComponent(path.split("/").pop() ?? "").replace(
+        /\.[^.]+$/,
+        ""
+      ) || "Image";
+    } catch {
+      return "Image";
+    }
+  }
+  async function resolveDroppedImage(dropped, client) {
+    if (dropped.attachmentId) {
+      const payload = await client.getMedia(dropped.attachmentId);
+      const loaded = await loadSourceImage(payload, client);
+      return { ...loaded, title: dropped.title || payload.title };
+    }
+    if (dropped.file) {
+      const loaded = await loadImageFile(dropped.file);
+      return {
+        ...loaded,
+        title: dropped.title || dropped.file.name.replace(/\.[^.]+$/, "")
+      };
+    }
+    if (dropped.url) {
+      const loaded = await loadFullSize(dropped.url);
+      return { ...loaded, title: dropped.title || fileNameFromUrl(dropped.url) };
+    }
+    return null;
+  }
+  function textLayerName(text) {
+    const first = text.split("\n")[0].trim();
+    if (!first) {
+      return __("Text");
+    }
+    return first.length > 24 ? `${first.slice(0, 23)}…` : first;
+  }
+  function render(source) {
+    return textCanvas({
+      text: source.text,
+      size: source.size,
+      family: source.family,
+      colour: source.colour,
+      bold: source.bold,
+      italic: source.italic,
+      strokeWidth: source.strokeWidth
+    });
+  }
+  function sourceFromBrush(target, text) {
+    const style = target.getTextStyle();
+    return {
+      text,
+      size: style.size,
+      family: style.family,
+      colour: style.colour,
+      bold: style.bold,
+      italic: style.italic,
+      strokeWidth: style.strokeWidth
+    };
+  }
+  function centreFor(point, rendered, scale, canvas) {
+    return {
+      x: (point.x + rendered.offsetX * scale.x + rendered.canvas.width * scale.x / 2) / canvas.width,
+      y: (point.y + rendered.offsetY * scale.y + rendered.canvas.height * scale.y / 2) / canvas.height
+    };
+  }
+  function textPlacement(layer, canvas) {
+    if (!layer.text) {
+      return null;
+    }
+    const rendered = render(layer.text);
+    if (!rendered || canvas.width < 1) {
+      return null;
+    }
+    const scale = { x: layer.transform.scaleX, y: layer.transform.scaleY };
+    return {
+      point: {
+        x: layer.transform.x * canvas.width - rendered.canvas.width * scale.x / 2 - rendered.offsetX * scale.x,
+        y: layer.transform.y * canvas.height - rendered.canvas.height * scale.y / 2 - rendered.offsetY * scale.y
+      },
+      scale
+    };
+  }
+  function drawTextLayer(target, text, point) {
+    const renderer = target.renderer;
+    const source = sourceFromBrush(target, text);
+    const rendered = render(source);
+    if (!renderer || !rendered) {
+      return false;
+    }
+    const recipe = target.store.current;
+    const canvas = recipe.canvas;
+    if (canvas.width < 1 || canvas.height < 1) {
+      return false;
+    }
+    const layer = createTextLayer(
+      textLayerName(text),
+      source,
+      centreFor(point, rendered, { x: 1, y: 1 }, canvas)
+    );
+    renderer.addRasterTexture(layer.id, rendered.canvas);
+    target.store.setLayers([...recipe.layers, layer], layer.id);
+    return true;
+  }
+  function replaceTextLayer(target, layerId, text, point) {
+    const recipe = target.store.current;
+    const existing = findLayer(recipe.layers, layerId);
+    if (!existing || !existing.text) {
+      return false;
+    }
+    if (!text.trim()) {
+      target.store.setLayers(
+        recipe.layers.filter((layer2) => layer2.id !== layerId),
+        void 0,
+        true,
+        "text"
+      );
+      return true;
+    }
+    const renderer = target.renderer;
+    const source = sourceFromBrush(target, text);
+    const rendered = render(source);
+    const canvas = recipe.canvas;
+    if (!renderer || !rendered || canvas.width < 1 || canvas.height < 1) {
+      return false;
+    }
+    const scale = { x: existing.transform.scaleX, y: existing.transform.scaleY };
+    const layer = {
+      ...createTextLayer(textLayerName(text), source, {
+        ...existing.transform,
+        ...centreFor(point, rendered, scale, canvas)
+      }),
+      visible: existing.visible,
+      opacity: existing.opacity
+    };
+    renderer.addRasterTexture(layer.id, rendered.canvas);
+    target.store.setLayers(
+      replaceLayer(recipe.layers, layerId, layer),
+      layer.id,
+      true,
+      "text"
+    );
+    return true;
+  }
+  function rasteriseTextLayer(renderer, layer) {
+    if (!layer.text) {
+      return false;
+    }
+    const rendered = render(layer.text);
+    if (!rendered) {
+      return false;
+    }
+    renderer.addRasterTexture(layer.id, rendered.canvas);
+    return true;
+  }
+  function hitTextLayer(recipe, renderer, point) {
+    const canvas = recipe.canvas;
+    for (let index = recipe.layers.length - 1; index >= 0; index--) {
+      const layer = recipe.layers[index];
+      if ("text" !== layer.kind || !layer.visible) {
+        continue;
+      }
+      const size = renderer.layerTextureSize(layer.id);
+      if (size.width < 1) {
+        continue;
+      }
+      const bounds = layerBounds(size, layer.transform, canvas);
+      if (point.x >= bounds.x && point.x <= bounds.x + bounds.width && point.y >= bounds.y && point.y <= bounds.y + bounds.height) {
+        return layer;
+      }
+    }
+    return null;
+  }
   const SIZED_TOOLS = [
     "brush",
     "eraser",
@@ -9183,236 +9924,6 @@ fn mainFragment(
     bar.divider();
     colourField(bar);
   }
-  const GRADIENT_KINDS = [
-    { value: "linear", label: "Linear" },
-    { value: "radial", label: "Radial" }
-  ];
-  const SHAPE_KINDS = [
-    { value: "rect", label: "Rectangle" },
-    { value: "rounded", label: "Rounded" },
-    { value: "ellipse", label: "Ellipse" },
-    { value: "line", label: "Line" },
-    { value: "triangle", label: "Triangle" },
-    { value: "star", label: "Star" }
-  ];
-  function rectFromDrag(from, to) {
-    return {
-      x: Math.min(from.x, to.x),
-      y: Math.min(from.y, to.y),
-      width: Math.abs(to.x - from.x),
-      height: Math.abs(to.y - from.y)
-    };
-  }
-  function squareDrag(from, to) {
-    const size = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
-    return {
-      x: from.x + Math.sign(to.x - from.x || 1) * size,
-      y: from.y + Math.sign(to.y - from.y || 1) * size
-    };
-  }
-  function starPoints(rect, points = 5, inner = 0.5) {
-    const cx = rect.x + rect.width / 2;
-    const cy = rect.y + rect.height / 2;
-    const rx = rect.width / 2;
-    const ry = rect.height / 2;
-    const out = [];
-    for (let i = 0; i < points * 2; i++) {
-      const angle = i / (points * 2) * Math.PI * 2 - Math.PI / 2;
-      const scale = i % 2 === 0 ? 1 : inner;
-      out.push({
-        x: cx + Math.cos(angle) * rx * scale,
-        y: cy + Math.sin(angle) * ry * scale
-      });
-    }
-    return out;
-  }
-  function withAlpha(colour, alpha) {
-    const rgb = hexToRgb(colour);
-    if (!rgb) {
-      return colour;
-    }
-    return `rgba( ${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha} )`;
-  }
-  function hexToRgb(colour) {
-    const match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(colour.trim());
-    if (!match) {
-      return null;
-    }
-    const hex = match[1];
-    const full = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
-    return [
-      parseInt(full.slice(0, 2), 16),
-      parseInt(full.slice(2, 4), 16),
-      parseInt(full.slice(4, 6), 16)
-    ];
-  }
-  function rgbToHex(r, g, b) {
-    const byte = (value) => Math.min(255, Math.max(0, Math.round(value))).toString(16).padStart(2, "0");
-    return `#${byte(r)}${byte(g)}${byte(b)}`;
-  }
-  function makeCanvas(width, height) {
-    if (width < 1 || height < 1) {
-      return null;
-    }
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(width);
-    canvas.height = Math.round(height);
-    const ctx = canvas.getContext("2d");
-    return ctx ? { canvas, ctx } : null;
-  }
-  function shapeCanvas(width, height, from, to, options) {
-    const surface = makeCanvas(width, height);
-    if (!surface) {
-      return null;
-    }
-    const { canvas, ctx } = surface;
-    const rect = rectFromDrag(from, to);
-    if (options.kind !== "line" && (rect.width < 1 || rect.height < 1)) {
-      return null;
-    }
-    ctx.beginPath();
-    switch (options.kind) {
-      case "rect":
-        ctx.rect(rect.x, rect.y, rect.width, rect.height);
-        break;
-      case "rounded": {
-        const radius = Math.min(
-          options.radius ?? 16,
-          rect.width / 2,
-          rect.height / 2
-        );
-        roundedRect(ctx, rect, radius);
-        break;
-      }
-      case "ellipse":
-        ctx.ellipse(
-          rect.x + rect.width / 2,
-          rect.y + rect.height / 2,
-          rect.width / 2,
-          rect.height / 2,
-          0,
-          0,
-          Math.PI * 2
-        );
-        break;
-      case "line":
-        ctx.moveTo(from.x, from.y);
-        ctx.lineTo(to.x, to.y);
-        break;
-      case "triangle":
-        ctx.moveTo(rect.x + rect.width / 2, rect.y);
-        ctx.lineTo(rect.x + rect.width, rect.y + rect.height);
-        ctx.lineTo(rect.x, rect.y + rect.height);
-        ctx.closePath();
-        break;
-      case "star":
-        starPoints(rect).forEach((point, index) => {
-          if (index === 0) {
-            ctx.moveTo(point.x, point.y);
-          } else {
-            ctx.lineTo(point.x, point.y);
-          }
-        });
-        ctx.closePath();
-        break;
-    }
-    if (options.style === "fill" && options.kind !== "line") {
-      ctx.fillStyle = options.colour;
-      ctx.fill();
-    } else {
-      ctx.strokeStyle = options.colour;
-      ctx.lineWidth = Math.max(1, options.strokeWidth);
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.stroke();
-    }
-    return canvas;
-  }
-  function roundedRect(ctx, rect, radius) {
-    const r = Math.max(0, radius);
-    ctx.moveTo(rect.x + r, rect.y);
-    ctx.arcTo(rect.x + rect.width, rect.y, rect.x + rect.width, rect.y + rect.height, r);
-    ctx.arcTo(
-      rect.x + rect.width,
-      rect.y + rect.height,
-      rect.x,
-      rect.y + rect.height,
-      r
-    );
-    ctx.arcTo(rect.x, rect.y + rect.height, rect.x, rect.y, r);
-    ctx.arcTo(rect.x, rect.y, rect.x + rect.width, rect.y, r);
-    ctx.closePath();
-  }
-  function gradientCanvas(width, height, kind, from, to, start, end, fade = false) {
-    const surface = makeCanvas(width, height);
-    const span = Math.hypot(to.x - from.x, to.y - from.y);
-    if (!surface || span < 1) {
-      return null;
-    }
-    const { canvas, ctx } = surface;
-    const ramp = kind === "linear" ? ctx.createLinearGradient(from.x, from.y, to.x, to.y) : ctx.createRadialGradient(from.x, from.y, 0, from.x, from.y, span);
-    ramp.addColorStop(0, start);
-    ramp.addColorStop(1, fade ? withAlpha(start, 0) : end);
-    ctx.fillStyle = ramp;
-    ctx.fillRect(0, 0, width, height);
-    return canvas;
-  }
-  function textCanvas(options) {
-    const text = options.text.trim();
-    if (!text) {
-      return null;
-    }
-    const font = cssFont(options);
-    const measure = makeCanvas(1, 1);
-    if (!measure) {
-      return null;
-    }
-    measure.ctx.font = font;
-    const lines = options.text.split("\n");
-    const lineHeight = Math.ceil(options.size * 1.25);
-    const pad = Math.ceil((options.strokeWidth ?? 0) + options.size * 0.35);
-    const widest = Math.max(
-      1,
-      ...lines.map((line) => measure.ctx.measureText(line).width)
-    );
-    const surface = makeCanvas(
-      Math.ceil(widest) + pad * 2,
-      lineHeight * lines.length + pad * 2
-    );
-    if (!surface) {
-      return null;
-    }
-    const { canvas, ctx } = surface;
-    ctx.font = font;
-    ctx.textBaseline = "top";
-    ctx.fillStyle = options.colour;
-    ctx.strokeStyle = options.colour;
-    ctx.lineWidth = Math.max(1, options.strokeWidth ?? 1);
-    ctx.lineJoin = "round";
-    lines.forEach((line, index) => {
-      const y = pad + index * lineHeight;
-      if (options.strokeWidth) {
-        ctx.strokeText(line, pad, y);
-      } else {
-        ctx.fillText(line, pad, y);
-      }
-    });
-    return { canvas, offsetX: -pad, offsetY: -pad };
-  }
-  function cssFont(options) {
-    return [
-      options.italic ? "italic" : "",
-      options.bold ? "700" : "400",
-      `${Math.max(1, Math.round(options.size))}px`,
-      options.family || "sans-serif"
-    ].filter(Boolean).join(" ");
-  }
-  const FONT_STACKS = [
-    { value: "system-ui, sans-serif", label: "System" },
-    { value: "Helvetica, Arial, sans-serif", label: "Sans" },
-    { value: 'Georgia, "Times New Roman", serif', label: "Serif" },
-    { value: "ui-monospace, Menlo, Consolas, monospace", label: "Mono" }
-  ];
   function styleToggle(bar) {
     bar.add(
       createSegmented({
@@ -11505,8 +12016,18 @@ fn mainFragment(
     constructor(options) {
       this.field = null;
       this.anchor = null;
+      this.layerId = null;
+      this.scale = { x: 1, y: 1 };
+      this.pressingChrome = false;
+      this.detachChrome = [];
       this.onInput = () => {
         this.resize();
+      };
+      this.onBlur = (event) => {
+        if (this.pressingChrome || this.isChrome(event.relatedTarget)) {
+          return;
+        }
+        this.commit();
       };
       this.onKeyDown = (event) => {
         event.stopPropagation();
@@ -11528,9 +12049,9 @@ fn mainFragment(
           return;
         }
         const style = this.options.getStyle();
-        const scale = viewport.width / canvas.width;
+        const zoom = viewport.width / canvas.width;
         field.style.font = cssFont({
-          size: Math.max(1, style.size * scale),
+          size: Math.max(1, style.size * zoom * this.scale.x),
           family: style.family,
           colour: style.colour,
           bold: style.bold,
@@ -11547,6 +12068,10 @@ fn mainFragment(
     /** Whether something is being typed right now. */
     get isEditing() {
       return this.field !== null;
+    }
+    /** The layer being retyped, or null when the caret is over new text or closed. */
+    get editingLayerId() {
+      return this.field ? this.layerId : null;
     }
     /**
      * What a press on the canvas means while the text tool is active.
@@ -11574,25 +12099,60 @@ fn mainFragment(
      * Anything already being typed is committed first, so no caller can end up with two
      * carets open at once.
      *
-     * @param point Canvas coordinates for the top-left of the first line.
+     * @param point   Canvas coordinates for the top-left of the first line.
+     * @param options Optional. Existing words to start from, and the layer they belong to.
      */
-    open(point) {
+    open(point, options = {}) {
       this.commit();
       const field = document.createElement("textarea");
       field.className = "lz-text-editor";
       field.rows = 1;
       field.spellcheck = false;
       field.setAttribute("aria-label", "Text");
+      field.value = options.initial ?? "";
       field.addEventListener("pointerdown", (event) => event.stopPropagation());
       field.addEventListener("input", this.onInput);
       field.addEventListener("keydown", this.onKeyDown);
-      field.addEventListener("blur", () => this.commit());
+      field.addEventListener("blur", this.onBlur);
+      this.watchChrome();
       this.anchor = point;
+      this.layerId = options.layerId ?? null;
+      this.scale = options.scale ?? { x: 1, y: 1 };
       this.field = field;
       this.options.stage.appendChild(field);
       this.restyle();
       field.focus();
+      field.setSelectionRange(field.value.length, field.value.length);
       this.options.onStateChange?.();
+    }
+    /**
+     * Whether an element belongs to the chrome that restyles rather than finishes.
+     *
+     * @param target What received focus.
+     */
+    isChrome(target) {
+      return target instanceof Node && (this.options.chrome ?? []).some((host) => host.contains(target));
+    }
+    /** Notices presses on the chrome, so a blur they cause is not a commit. */
+    watchChrome() {
+      const down = () => {
+        this.pressingChrome = true;
+      };
+      const up = () => {
+        this.pressingChrome = false;
+      };
+      for (const host of this.options.chrome ?? []) {
+        host.addEventListener("pointerdown", down, true);
+        this.detachChrome.push(
+          () => host.removeEventListener("pointerdown", down, true)
+        );
+      }
+      window.addEventListener("pointerup", up, true);
+      window.addEventListener("pointercancel", up, true);
+      this.detachChrome.push(() => {
+        window.removeEventListener("pointerup", up, true);
+        window.removeEventListener("pointercancel", up, true);
+      });
     }
     /** Sizes the field to its contents, in both directions. */
     resize() {
@@ -11605,17 +12165,23 @@ fn mainFragment(
       field.style.inlineSize = `${field.scrollWidth + 4}px`;
       field.style.blockSize = `${field.scrollHeight}px`;
     }
-    /** Rasterises what was typed and closes the caret. */
+    /**
+     * Rasterises what was typed and closes the caret.
+     *
+     * Over an existing layer the commit always fires, even with the field emptied:
+     * deleting every word of a text layer is how you delete the layer.
+     */
     commit() {
       const field = this.field;
       const anchor = this.anchor;
+      const layerId = this.layerId;
       if (!field || !anchor) {
         return;
       }
       const text = field.value;
       this.close();
-      if (text.trim()) {
-        this.options.onCommit(text, anchor);
+      if (text.trim() || layerId) {
+        this.options.onCommit(text, anchor, layerId);
       }
     }
     /** Closes the caret, discarding what was typed. */
@@ -11627,6 +12193,13 @@ fn mainFragment(
       const field = this.field;
       this.field = null;
       this.anchor = null;
+      this.layerId = null;
+      this.scale = { x: 1, y: 1 };
+      this.pressingChrome = false;
+      for (const off of this.detachChrome) {
+        off();
+      }
+      this.detachChrome = [];
       field?.remove();
       this.options.onStateChange?.();
     }
@@ -12541,13 +13114,29 @@ fn mainFragment(
           toolset.cursor.draw();
         },
         // `place()` rather than `open()`: a press that finishes one piece of text
-        // does not also begin the next one.
-        onPlaceText: (point) => toolset.text.place(point),
+        // does not also begin the next one. A press on text that already exists
+        // reopens it instead -- text is an object, and clicking an object with the
+        // tool that made it is how you get back into it.
+        onPlaceText: (point) => {
+          if (toolset.text.isEditing) {
+            toolset.text.place(point);
+            return;
+          }
+          const hit = hitTextLayer(store.current, renderer.paint, point);
+          if (hit && editor.editText(hit.id)) {
+            return;
+          }
+          toolset.text.place(point);
+        },
         maxEdgePixels: editor.config.maxEdgePixels,
         // One history entry per stroke, not per dab -- and it carries the tiles the
         // stroke overwrote, so undoing it puts the pixels back rather than
-        // restoring an identical recipe and appearing to do nothing.
-        onStrokeEnd: () => void editor.strokes?.commit()
+        // restoring an identical recipe and appearing to do nothing. The stroke is
+        // closed first, so the layer holds its final pixels before they are filed.
+        onStrokeEnd: () => {
+          renderer.paint.endStroke();
+          void editor.strokes?.commit();
+        }
       },
       text: {
         getStyle: () => {
@@ -12560,15 +13149,43 @@ fn mainFragment(
             italic: brush.italic
           };
         },
-        onCommit: (text, point) => {
-          if (!editor.drawText(text, point)) {
+        onCommit: (text, point, layerId) => {
+          const changed = layerId ? editor.replaceText(layerId, text, point) : editor.drawText(text, point);
+          if (!changed) {
             return;
           }
           state2.setTool("transform");
         },
-        onStateChange: () => toolset.optionsBar.render()
+        // The controls that restyle the text live here; a click on them must not
+        // finish it. The top bar's own actions are deliberately left out: pressing
+        // Save should commit the caret first, so the render carries the words.
+        chrome: [shell2.options, shell2.sidebar],
+        onStateChange: () => {
+          if (!toolset.text.isEditing) {
+            renderer.hideLayer(null);
+          }
+          toolset.optionsBar.render();
+        }
       }
     });
+    const onDoubleClick = (event) => {
+      if ("transform" !== state2.getTool() || toolset.text.isEditing) {
+        return;
+      }
+      const viewport = renderer.view.viewport();
+      const canvas = store.current.canvas;
+      const rect = shell2.stage.getBoundingClientRect();
+      const hit = viewport && viewport.width > 0 ? hitTextLayer(store.current, renderer.paint, {
+        x: (event.clientX - rect.left - viewport.x) / viewport.width * canvas.width,
+        y: (event.clientY - rect.top - viewport.y) / viewport.height * canvas.height
+      }) : null;
+      const layer = hit ?? findLayer(store.current.layers, store.current.activeLayerId);
+      if (layer?.text && editor.editText(layer.id)) {
+        event.preventDefault();
+      }
+    };
+    shell2.stage.addEventListener("dblclick", onDoubleClick);
+    editor.onTeardown(() => shell2.stage.removeEventListener("dblclick", onDoubleClick));
     toolset.setRulersVisible(state2.getView().rulers);
     shell2.stage.classList.toggle("has-rulers", state2.getView().rulers);
     shell2.stage.dataset.shape = editor.selectionShape;
@@ -12633,6 +13250,10 @@ fn mainFragment(
     const canvas = stored.canvas.width > 0 && stored.canvas.height > 0 ? stored.canvas : renderer.imageSize;
     editor.store.replace({ ...stored, canvas }, "document");
     editor.strokes = new StrokeRecorder(editor.store, renderer.paint);
+    await restoreLayers(editor);
+    if (editor.isDestroyed) {
+      return;
+    }
     editor.onTeardown(
       editor.store.subscribe((recipe, scope) => {
         retainTextures(renderer, editor.store.states);
@@ -12652,6 +13273,48 @@ fn mainFragment(
     editor.syncToolbar();
     editor.onTeardown(attachEditorShortcuts(shortcutTarget(editor)));
     editor.shell.setTitle(payload.title);
+  }
+  async function restoreLayers(editor) {
+    const renderer = editor.renderer;
+    const stored = editor.payload?.layers ?? {};
+    const recipe = editor.store.current;
+    const failed = [];
+    let restoring = false;
+    for (const layer of recipe.layers) {
+      if ("text" === layer.kind) {
+        rasteriseTextLayer(renderer.paint, layer);
+        continue;
+      }
+      const url = "raster" === layer.kind ? stored[layer.id] : void 0;
+      if (!url) {
+        continue;
+      }
+      if (!restoring) {
+        restoring = true;
+        editor.shell.setStatus(__("Restoring layers…"));
+      }
+      try {
+        const loaded = await loadImageBlob(await editor.client.getBlob(url));
+        if (editor.isDestroyed) {
+          loaded.release();
+          return;
+        }
+        renderer.paint.addRasterTexture(layer.id, loaded.image);
+        loaded.release();
+      } catch {
+        failed.push(layer.name);
+      }
+    }
+    if (failed.length > 0) {
+      toast(
+        sprintf(
+          /* translators: %s: comma-separated layer names. */
+          __("Some layers could not be restored: %s"),
+          failed.join(", ")
+        ),
+        "error"
+      );
+    }
   }
   function buildSidebar(editor) {
     registerBuiltInPanels();
@@ -12896,53 +13559,6 @@ fn mainFragment(
     }
     editor.renderer?.view.fit();
   }
-  async function loadFullSize(url) {
-    const full = url.replace(/-\d+x\d+(\.[a-z0-9]+)(\?|#|$)/i, "$1$2");
-    if (full !== url) {
-      try {
-        return await loadImageUrl(full);
-      } catch {
-      }
-    }
-    return loadImageUrl(url);
-  }
-  function fileNameFromUrl(url) {
-    try {
-      const path = new URL(url, window.location.href).pathname;
-      return decodeURIComponent(path.split("/").pop() ?? "").replace(
-        /\.[^.]+$/,
-        ""
-      ) || "Image";
-    } catch {
-      return "Image";
-    }
-  }
-  async function resolveDroppedImage(dropped, client) {
-    if (dropped.attachmentId) {
-      const payload = await client.getMedia(dropped.attachmentId);
-      const loaded = await loadSourceImage(payload, client);
-      return { ...loaded, title: dropped.title || payload.title };
-    }
-    if (dropped.file) {
-      const loaded = await loadImageFile(dropped.file);
-      return {
-        ...loaded,
-        title: dropped.title || dropped.file.name.replace(/\.[^.]+$/, "")
-      };
-    }
-    if (dropped.url) {
-      const loaded = await loadFullSize(dropped.url);
-      return { ...loaded, title: dropped.title || fileNameFromUrl(dropped.url) };
-    }
-    return null;
-  }
-  function textLayerName(text) {
-    const first = text.split("\n")[0].trim();
-    if (!first) {
-      return __("Text");
-    }
-    return first.length > 24 ? `${first.slice(0, 23)}…` : first;
-  }
   const DROP_FIT = 0.8;
   async function addImageLayer(target, dropped) {
     const renderer = target.renderer;
@@ -13000,26 +13616,6 @@ fn mainFragment(
       x: Math.min(1, Math.max(0, x)),
       y: Math.min(1, Math.max(0, y))
     };
-  }
-  function drawTextLayer(target, text, point) {
-    const renderer = target.renderer;
-    const style = target.getTextStyle();
-    const rendered = textCanvas({ text, ...style });
-    if (!renderer || !rendered) {
-      return false;
-    }
-    const recipe = target.store.current;
-    const canvas = recipe.canvas;
-    if (canvas.width < 1 || canvas.height < 1) {
-      return false;
-    }
-    const layer = createRasterLayer(textLayerName(text), {
-      x: (point.x + rendered.offsetX + rendered.canvas.width / 2) / canvas.width,
-      y: (point.y + rendered.offsetY + rendered.canvas.height / 2) / canvas.height
-    });
-    renderer.addRasterTexture(layer.id, rendered.canvas);
-    target.store.setLayers([...recipe.layers, layer], layer.id);
-    return true;
   }
   function savedMessage(result, rendered) {
     const downscaled = rendered !== void 0 && result.width > 0 && result.width < rendered;
@@ -13101,10 +13697,15 @@ fn mainFragment(
       const rendered = this.options.getRenderer()?.sourceSize;
       try {
         this.setBusy(true);
+        const layers = await this.exportLayers();
+        if (this.options.isDestroyed()) {
+          return null;
+        }
         const result = await this.options.client.saveRender(
           payload.id,
           blob,
-          this.options.store.current
+          this.options.store.current,
+          layers
         );
         toast(savedMessage(result, rendered?.width), "success");
         return result;
@@ -13114,6 +13715,37 @@ fn mainFragment(
       } finally {
         this.setBusy(false);
       }
+    }
+    /**
+     * Encodes every painted layer, so the copy can be opened with them again.
+     *
+     * All or nothing. A save is only re-editable when every raster layer travels with
+     * it, so one layer too large for the site to accept means none go and the copy
+     * flattens -- which the server reports, and the banner explains -- rather than a
+     * copy that opens with half its layers.
+     *
+     * @return The layers to upload; empty when the save should flatten.
+     */
+    async exportLayers() {
+      const renderer = this.options.getRenderer();
+      if (!renderer) {
+        return [];
+      }
+      const layers = [];
+      for (const layer of this.options.store.current.layers) {
+        if ("raster" !== layer.kind) {
+          continue;
+        }
+        const blob = await renderer.exportLayer(layer.id);
+        if (!blob) {
+          continue;
+        }
+        if (blob.size > this.options.maxUploadBytes) {
+          return [];
+        }
+        layers.push({ id: layer.id, blob });
+      }
+      return layers;
     }
     /**
      * Downloads the rendered image to the user's device.
@@ -13462,11 +14094,14 @@ fn mainFragment(
      * @param activeId Optional. Which layer becomes active.
      * @param undoable Optional. False folds the change into the current entry, for a
      *                 layer that exists only because a stroke needed somewhere to go.
+     * @param label    Optional. History label. Consecutive changes sharing one coalesce,
+     *                 so a change that must stand as its own undo step -- retyping a text
+     *                 layer, right after selecting it -- passes a label of its own.
      */
-    setLayers(layers, activeId, undoable = true) {
+    setLayers(layers, activeId, undoable = true, label = "layers") {
       const next = setLayers(this.current, layers, activeId);
       if (undoable) {
-        this.push(next, "layers", "document");
+        this.push(next, label, "document");
       } else {
         this.replace(next, "document");
       }
@@ -13909,6 +14544,7 @@ fn mainFragment(
       this.output = new OutputController({
         store: this.store,
         client: this.client,
+        maxUploadBytes: this.config.maxUploadBytes,
         getRenderer: () => this.renderer,
         getPayload: () => this.payload,
         isDestroyed: () => this.destroyed,
@@ -13969,6 +14605,62 @@ fn mainFragment(
      */
     drawText(text, point) {
       return drawTextLayer(importTarget(this), text, point);
+    }
+    /**
+     * Reopens a text layer for retyping.
+     *
+     * The caret lands over the glyphs, filled with the words, styled the way they are
+     * drawn -- so the options bar shows the layer's own font and colour, and changing
+     * either restyles the text live. The layer itself steps out of the picture while
+     * the caret is open, or there would be two copies of the text on screen.
+     *
+     * @param layerId Text layer to edit.
+     * @return True when the caret opened.
+     */
+    editText(layerId) {
+      const recipe = this.store.current;
+      const layer = findLayer(recipe.layers, layerId);
+      const renderer = this.renderer;
+      const stage = this.stage;
+      if (!layer?.text || !renderer || !stage) {
+        return false;
+      }
+      const placement = textPlacement(layer, recipe.canvas);
+      if (!placement) {
+        return false;
+      }
+      if (recipe.activeLayerId !== layerId) {
+        this.store.setLayers(recipe.layers, layerId);
+      }
+      const source = layer.text;
+      this.state.setBrush({
+        fontSize: source.size,
+        fontFamily: source.family,
+        colour: source.colour,
+        bold: source.bold,
+        italic: source.italic,
+        shapeStyle: source.strokeWidth > 0 ? "stroke" : "fill",
+        ...source.strokeWidth > 0 ? { strokeWidth: source.strokeWidth } : {}
+      });
+      this.state.setTool("text");
+      renderer.hideLayer(layerId);
+      stage.text.open(placement.point, {
+        initial: source.text,
+        layerId,
+        scale: placement.scale
+      });
+      return true;
+    }
+    /**
+     * Replaces a text layer's words.
+     *
+     * @param layerId Text layer to retype.
+     * @param text    The new words. Empty removes the layer.
+     * @param point   Canvas coordinates of the first line's top-left corner.
+     * @return True when the document changed.
+     */
+    replaceText(layerId, text, point) {
+      return replaceTextLayer(importTarget(this), layerId, text, point);
     }
     /**
      * Registers teardown callbacks.
@@ -14360,6 +15052,7 @@ fn mainFragment(
   exports.openEditorOverlay = openEditorOverlay;
   exports.openInDesktop = openInDesktop;
   exports.registerPanel = registerPanel;
+  exports.renderDesktopWindow = renderWindow;
   exports.unregisterPanel = unregisterPanel;
   exports.version = version;
   Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });

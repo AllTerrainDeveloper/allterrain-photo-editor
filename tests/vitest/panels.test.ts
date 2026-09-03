@@ -53,6 +53,7 @@ function context(): PanelContext {
 		getActiveLayerId: () => 'base',
 		setLayers: () => {},
 		addLayer: () => {},
+		editTextLayer: () => {},
 		getBrush: () => defaultBrush(),
 		setBrush: () => {},
 		onBrushChange: () => () => {},

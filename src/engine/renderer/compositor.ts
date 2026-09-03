@@ -71,8 +71,15 @@ export class DocumentCompositor {
 	 * @param canvas Output surface size.
 	 * @param stack  Layers, back to front.
 	 * @param source The loaded image, which backs the base layer.
+	 * @param hidden Optional. A layer to leave out without changing the document --
+	 *               the text layer whose words are being retyped on top of it.
 	 */
-	compose( canvas: CanvasSize, stack: Layer[], source: GpuTexture | null ): void {
+	compose(
+		canvas: CanvasSize,
+		stack: Layer[],
+		source: GpuTexture | null,
+		hidden: string | null = null
+	): void {
 		this.release();
 
 		if ( ! source || canvas.width <= 0 || canvas.height <= 0 ) {
@@ -97,7 +104,12 @@ export class DocumentCompositor {
 		for ( const layer of stack ) {
 			const texture = this.layers.get( layer.id );
 
-			if ( ! texture || ! layer.visible || layer.opacity <= 0 ) {
+			if (
+				! texture ||
+				! layer.visible ||
+				layer.opacity <= 0 ||
+				layer.id === hidden
+			) {
 				continue;
 			}
 

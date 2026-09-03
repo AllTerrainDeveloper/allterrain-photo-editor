@@ -42,9 +42,9 @@ export function announceSave(
 		document.createTextNode(
 			result.flattened
 				? __(
-						'Saved a copy. Painted layers were baked into it, so re-opening shows those pixels rather than the sliders. '
+						'Saved a copy. Its painted layers were too large to keep, so they were baked in; re-opening shows those pixels rather than the layers. '
 				  )
-				: __( 'Saved a copy. ' )
+				: __( 'Saved a copy. Open it again and every layer is still there to edit. ' )
 		),
 		open.el
 	);

@@ -13,6 +13,7 @@
  */
 
 import type { EditorRenderer } from '../engine/renderer';
+import { findLayer } from '../model/document';
 import type { CanvasSize } from '../model/document';
 import type { Recipe } from '../model/recipe';
 import type { SelectionMode, SelectionShape } from '../model/selection';
@@ -30,7 +31,7 @@ import { stateEffects } from './state-effects';
 import { importTarget } from './adapters';
 import type { DroppedImage } from './image-source';
 import { addImageLayer } from './layer-import';
-import { drawTextLayer } from './text-layer';
+import { drawTextLayer, replaceTextLayer, textPlacement } from './text-layer';
 import { OutputController } from './output';
 import { emptyStore } from './recipe-store';
 import type { SelectionOverlay } from './selection-overlay';
@@ -127,6 +128,7 @@ export class Editor implements EditorInstance {
 		this.output = new OutputController( {
 			store: this.store,
 			client: this.client,
+			maxUploadBytes: this.config.maxUploadBytes,
 			getRenderer: () => this.renderer,
 			getPayload: () => this.payload,
 			isDestroyed: () => this.destroyed,
@@ -197,6 +199,72 @@ export class Editor implements EditorInstance {
 	 */
 	drawText( text: string, point: { x: number; y: number } ): boolean {
 		return drawTextLayer( importTarget( this ), text, point );
+	}
+
+	/**
+	 * Reopens a text layer for retyping.
+	 *
+	 * The caret lands over the glyphs, filled with the words, styled the way they are
+	 * drawn -- so the options bar shows the layer's own font and colour, and changing
+	 * either restyles the text live. The layer itself steps out of the picture while
+	 * the caret is open, or there would be two copies of the text on screen.
+	 *
+	 * @param layerId Text layer to edit.
+	 * @return True when the caret opened.
+	 */
+	editText( layerId: string ): boolean {
+		const recipe = this.store.current;
+		const layer = findLayer( recipe.layers, layerId );
+		const renderer = this.renderer;
+		const stage = this.stage;
+
+		if ( ! layer?.text || ! renderer || ! stage ) {
+			return false;
+		}
+
+		const placement = textPlacement( layer, recipe.canvas );
+
+		if ( ! placement ) {
+			return false;
+		}
+
+		if ( recipe.activeLayerId !== layerId ) {
+			this.store.setLayers( recipe.layers, layerId );
+		}
+
+		const source = layer.text;
+
+		this.state.setBrush( {
+			fontSize: source.size,
+			fontFamily: source.family,
+			colour: source.colour,
+			bold: source.bold,
+			italic: source.italic,
+			shapeStyle: source.strokeWidth > 0 ? 'stroke' : 'fill',
+			...( source.strokeWidth > 0 ? { strokeWidth: source.strokeWidth } : {} ),
+		} );
+		this.state.setTool( 'text' );
+
+		renderer.hideLayer( layerId );
+		stage.text.open( placement.point, {
+			initial: source.text,
+			layerId,
+			scale: placement.scale,
+		} );
+
+		return true;
+	}
+
+	/**
+	 * Replaces a text layer's words.
+	 *
+	 * @param layerId Text layer to retype.
+	 * @param text    The new words. Empty removes the layer.
+	 * @param point   Canvas coordinates of the first line's top-left corner.
+	 * @return True when the document changed.
+	 */
+	replaceText( layerId: string, text: string, point: { x: number; y: number } ): boolean {
+		return replaceTextLayer( importTarget( this ), layerId, text, point );
 	}
 
 	/**

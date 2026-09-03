@@ -101,6 +101,14 @@ export class EditorRenderer {
 	/** The layer stack, back to front. */
 	private stack: Layer[] = [];
 
+	/**
+	 * A layer left out of the composition without leaving the document.
+	 *
+	 * While a text layer's words are being retyped, the caret sits exactly where the
+	 * rendered glyphs are; showing both would put two copies of the text on screen.
+	 */
+	private hidden: string | null = null;
+
 	private destroyed = false;
 
 	/**
@@ -157,7 +165,7 @@ export class EditorRenderer {
 	 * current zoom calls for is re-applied rather than waiting for the next fit.
 	 */
 	private recompose(): void {
-		this.pixels.compose( this.canvas, this.stack, this.texture );
+		this.pixels.compose( this.canvas, this.stack, this.texture, this.hidden );
 
 		if ( this.sprite ) {
 			const texture = this.displayTexture();
@@ -211,6 +219,23 @@ export class EditorRenderer {
 
 		this.recompose();
 		this.view.fit();
+	}
+
+	/**
+	 * Leaves one layer out of the picture, or puts it back.
+	 *
+	 * Not a document change: the layer is still there, still visible as far as the
+	 * recipe is concerned, and comes back the moment this is cleared.
+	 *
+	 * @param layerId Layer to hide, or null to hide none.
+	 */
+	hideLayer( layerId: string | null ): void {
+		if ( this.hidden === layerId ) {
+			return;
+		}
+
+		this.hidden = layerId;
+		this.recompose();
 	}
 
 	/**
@@ -311,6 +336,16 @@ export class EditorRenderer {
 	 */
 	renderFull( format: string, quality: number ): Promise< Blob > {
 		return renderFull( this.engine.offscreen, format, quality, this.maxRenderPixels );
+	}
+
+	/**
+	 * Encodes one layer's pixels as a PNG, for saving beside the recipe.
+	 *
+	 * @param layerId Layer to encode.
+	 * @return The encoded pixels, or null when the layer has none.
+	 */
+	exportLayer( layerId: string ): Promise< Blob | null > {
+		return this.paint.exportLayer( layerId );
 	}
 
 	/** Internal state, for diagnosing render problems from the console. */

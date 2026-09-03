@@ -7,9 +7,13 @@
  * runs and all four standalone hosts continue to work untouched. There is
  * deliberately no `Requires Plugins: desktop-mode` header on the bootstrap.
  *
- * The window, icon, file opener and drag targets land in Phase 4. What exists now
- * is the detection helper the rest of the plugin uses to decide whether to offer
- * desktop affordances.
+ * The window itself is declared twice over, and exactly one declaration is used. On
+ * an OpenStation with the App Framework, `apps/photo-editor/photo-editor.os.php` is
+ * the window -- title, size, capability, icon -- and the framework mounts the editor
+ * into it. On an older shell without the framework, `lienzo_register_desktop_window()`
+ * registers the same window directly. Both land on the same id, so everything that
+ * opens the editor -- the file opener, the icon drop, the media modal, the block
+ * toolbar -- asks for `lienzo` and neither knows nor cares which path answered.
  *
  * @package AllTerrain_Photo_Editor
  */
@@ -54,7 +58,12 @@ function lienzo_maybe_init_desktop_mode() {
 		return;
 	}
 
-	add_action( 'init', 'lienzo_register_desktop_window', 20 );
+	if ( lienzo_uses_app_framework() ) {
+		add_filter( 'openstation_apps_directories', 'lienzo_register_apps_directory' );
+		add_action( 'init', 'lienzo_register_file_opener', 20 );
+	} else {
+		add_action( 'init', 'lienzo_register_desktop_window', 20 );
+	}
 
 	// Registered against both spellings. Which one fires depends on the shell's
 	// version, and a listener for a hook that never fires costs nothing.
@@ -68,12 +77,45 @@ function lienzo_maybe_init_desktop_mode() {
 }
 
 /**
+ * Whether this OpenStation can host the editor as an App Framework app.
+ *
+ * Tested by capability, as everything about the shell is: the function that turns
+ * apps into windows, and the class an `.os.php` file returns. A shell with one and
+ * not the other is mid-upgrade or a fork, and gets the direct registration.
+ *
+ * @since 1.1.0
+ *
+ * @return bool True when the `.os.php` declaration will be read.
+ */
+function lienzo_uses_app_framework() {
+	return lienzo_shell_has( 'apps_register_windows' ) && class_exists( 'OpenStation\App' );
+}
+
+/**
+ * Points the App Framework at this plugin's apps.
+ *
+ * @since 1.1.0
+ *
+ * @param array $dirs Directories the framework scans for `.os.php` files.
+ * @return array Directories, with ours appended.
+ */
+function lienzo_register_apps_directory( $dirs ) {
+	$dirs   = (array) $dirs;
+	$dirs[] = LIENZO_DIR . 'apps';
+
+	return $dirs;
+}
+
+/**
  * Registers the native window, its wallpaper icon, and the file opener.
  *
  * A *native* window rather than an iframe: rendering into the shell's own DOM is
  * what gives the editor access to the desktop's drag bridge, so a photo can be
  * dragged onto it and a saved result dragged back out into a Gutenberg window.
  * Neither is possible across an iframe boundary.
+ *
+ * The path for a shell without the App Framework. With it, the window comes from
+ * `apps/photo-editor/photo-editor.os.php` and only the file opener is registered here.
  *
  * @since 0.1.0
  *
@@ -116,20 +158,36 @@ function lienzo_register_desktop_window() {
 		);
 	}
 
-	if ( lienzo_shell_has( 'register_file_opener' ) ) {
-		lienzo_shell_call(
-			'register_file_opener',
-			'lienzo',
-			array(
-				'label'        => __( 'Edit in AllTerrain Photo Editor', 'allterrain-photo-editor' ),
-				'types'        => array( 'attachment' ),
-				'is_default'   => false,
-				'sort'         => 15,
-				'script'       => 'lienzo',
-				'capabilities' => array( 'upload_files' ),
-			)
-		);
+	lienzo_register_file_opener();
+}
+
+/**
+ * Offers the editor as a way to open image files on the desktop.
+ *
+ * Shared by both registration paths: an app window and a directly registered one
+ * open files the same way.
+ *
+ * @since 1.1.0
+ *
+ * @return void
+ */
+function lienzo_register_file_opener() {
+	if ( ! lienzo_shell_has( 'register_file_opener' ) ) {
+		return;
 	}
+
+	lienzo_shell_call(
+		'register_file_opener',
+		'lienzo',
+		array(
+			'label'        => __( 'Edit in AllTerrain Photo Editor', 'allterrain-photo-editor' ),
+			'types'        => array( 'attachment' ),
+			'is_default'   => false,
+			'sort'         => 15,
+			'script'       => 'lienzo',
+			'capabilities' => array( 'upload_files' ),
+		)
+	);
 }
 
 /**

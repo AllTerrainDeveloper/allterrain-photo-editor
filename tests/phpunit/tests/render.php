@@ -529,4 +529,257 @@ class Tests_Lienzo_Render extends WP_UnitTestCase {
 		$this->assertNotNull( $stored );
 		$this->assertSame( 'contrast', $stored['ops'][0]['type'] );
 	}
+
+	/**
+	 * Stages a PNG the way PHP would present a layer upload.
+	 *
+	 * @param string $layer_id Layer id the upload is keyed under.
+	 * @return array Upload array.
+	 */
+	private function staged_layer( $layer_id ) {
+		$tmp = wp_tempnam( $layer_id . '.png' );
+		copy( DIR_TESTDATA . '/images/codeispoetry.png', $tmp );
+
+		$this->temp_files[] = $tmp;
+
+		return array(
+			'tmp_name' => $tmp,
+			'name'     => $layer_id . '.png',
+			'type'     => 'image/png',
+			'size'     => filesize( $tmp ),
+			'error'    => 0,
+		);
+	}
+
+	/**
+	 * A recipe carrying one raster layer.
+	 *
+	 * @param int    $source_id Source attachment.
+	 * @param string $layer_id  Raster layer id.
+	 * @return array Validated recipe.
+	 */
+	private function layered_recipe( $source_id, $layer_id ) {
+		$raw           = $this->recipe( $source_id );
+		$raw['layers'] = array(
+			array(
+				'id'   => 'base',
+				'kind' => 'image',
+			),
+			array(
+				'id'   => $layer_id,
+				'name' => 'Paint',
+				'kind' => 'raster',
+			),
+		);
+
+		return lienzo_validate_recipe( $raw );
+	}
+
+	/**
+	 * Text draws itself again from its words, so a recipe with text replays exactly.
+	 *
+	 * @covers ::lienzo_recipe_is_reproducible
+	 */
+	public function test_a_text_layer_is_reproducible() {
+		$raw           = $this->recipe( 1 );
+		$raw['layers'] = array(
+			array(
+				'id'   => 'base',
+				'kind' => 'image',
+			),
+			array(
+				'id'   => 'layer-words',
+				'kind' => 'text',
+				'text' => array( 'text' => 'Hello' ),
+			),
+		);
+
+		$this->assertTrue( lienzo_recipe_is_reproducible( lienzo_validate_recipe( $raw ) ) );
+	}
+
+	/**
+	 * A raster layer is reproducible once its pixels were stored with the save.
+	 *
+	 * @covers ::lienzo_recipe_is_reproducible
+	 */
+	public function test_a_raster_layer_with_stored_pixels_is_reproducible() {
+		$recipe = $this->layered_recipe( 1, 'layer-paint' );
+
+		$this->assertFalse( lienzo_recipe_is_reproducible( $recipe ) );
+		$this->assertFalse( lienzo_recipe_is_reproducible( $recipe, array( 'layer-other' ) ) );
+		$this->assertTrue( lienzo_recipe_is_reproducible( $recipe, array( 'layer-paint' ) ) );
+	}
+
+	/**
+	 * The editor sends layers as `layers[<id>]`, which PHP nests field by field.
+	 *
+	 * @covers ::lienzo_layer_uploads
+	 */
+	public function test_layer_uploads_are_picked_out_of_the_request() {
+		$uploads = lienzo_layer_uploads(
+			array(
+				'file'   => array( 'tmp_name' => '/tmp/render' ),
+				'layers' => array(
+					'name'     => array(
+						'layer-ok'      => 'a.png',
+						'../etc/passwd' => 'b.png',
+						'layer-failed'  => 'c.png',
+					),
+					'type'     => array(
+						'layer-ok'      => 'image/png',
+						'../etc/passwd' => 'image/png',
+						'layer-failed'  => 'image/png',
+					),
+					'tmp_name' => array(
+						'layer-ok'      => '/tmp/a',
+						'../etc/passwd' => '/tmp/b',
+						'layer-failed'  => '/tmp/c',
+					),
+					'error'    => array(
+						'layer-ok'      => 0,
+						'../etc/passwd' => 0,
+						'layer-failed'  => UPLOAD_ERR_PARTIAL,
+					),
+					'size'     => array(
+						'layer-ok'      => 10,
+						'../etc/passwd' => 10,
+						'layer-failed'  => 10,
+					),
+				),
+			)
+		);
+
+		$this->assertSame( array( 'layer-ok' ), array_keys( $uploads ) );
+		$this->assertSame( '/tmp/a', $uploads['layer-ok']['tmp_name'] );
+		$this->assertSame( 'layer-ok.png', $uploads['layer-ok']['name'] );
+
+		$this->assertSame( array(), lienzo_layer_uploads( array() ) );
+	}
+
+	/**
+	 * A save that brings its layers along stays editable: the recipe and the source
+	 * pointer are stored, and each layer's pixels sit in the copy's own directory.
+	 *
+	 * @covers ::lienzo_store_render
+	 * @covers ::lienzo_store_layer_files
+	 * @covers ::lienzo_get_layer_files
+	 * @covers ::lienzo_layer_path
+	 * @covers ::lienzo_layer_urls
+	 */
+	public function test_save_keeps_its_layers() {
+		wp_set_current_user( $this->admin );
+
+		$source_id = $this->make_image();
+		$new_id    = lienzo_store_render(
+			$this->staged_upload( DIR_TESTDATA . '/images/canola.jpg', 'canola.jpg' ),
+			$source_id,
+			$this->layered_recipe( $source_id, 'layer-paint' ),
+			array( 'layer-paint' => $this->staged_layer( 'layer-paint' ) )
+		);
+
+		$this->assertNotWPError( $new_id );
+		$this->assertSame( $source_id, (int) get_post_meta( $new_id, LIENZO_SOURCE_META, true ) );
+		$this->assertIsArray( lienzo_get_recipe( $new_id ) );
+
+		$files = lienzo_get_layer_files( $new_id );
+
+		$this->assertSame( array( 'layer-paint' ), array_keys( $files ) );
+
+		$path = lienzo_layer_path( $new_id, 'layer-paint' );
+
+		$this->assertNotSame( '', $path );
+		$this->assertFileExists( $path );
+		$this->assertSame( 'image/png', wp_get_image_mime( $path ) );
+		$this->assertStringContainsString( '/allterrain-photo-editor/layers/' . $new_id . '/', $path );
+
+		$this->assertSame( '', lienzo_layer_path( $new_id, 'layer-missing' ) );
+
+		$urls = lienzo_layer_urls( $new_id );
+
+		$this->assertStringContainsString( '/lienzo/v1/media/' . $new_id . '/layers/layer-paint', $urls['layer-paint'] );
+
+		// The payload the editor opens with knows where to fetch the pixels back from.
+		$data = rest_do_request( new WP_REST_Request( 'GET', '/lienzo/v1/media/' . $new_id ) )->get_data();
+
+		$this->assertSame( $source_id, $data['sourceId'] );
+		$this->assertSame( 'raster', $data['recipe']['layers'][1]['kind'] );
+		$this->assertArrayHasKey( 'layer-paint', $data['layers'] );
+
+		// And the layers go when the copy does.
+		wp_delete_attachment( $new_id, true );
+
+		$this->assertFileDoesNotExist( $path );
+		$this->assertSame( array(), lienzo_get_layer_files( $new_id ) );
+	}
+
+	/**
+	 * A save whose layers did not come along flattens, as it always did, and keeps no
+	 * half set of layer files.
+	 *
+	 * @covers ::lienzo_store_render
+	 */
+	public function test_save_without_its_layers_flattens() {
+		wp_set_current_user( $this->admin );
+
+		$source_id = $this->make_image();
+		$raw       = $this->recipe( $source_id );
+
+		$raw['layers'] = array(
+			array(
+				'id'   => 'base',
+				'kind' => 'image',
+			),
+			array(
+				'id'   => 'layer-one',
+				'kind' => 'raster',
+			),
+			array(
+				'id'   => 'layer-two',
+				'kind' => 'raster',
+			),
+		);
+
+		$new_id = lienzo_store_render(
+			$this->staged_upload( DIR_TESTDATA . '/images/canola.jpg', 'canola.jpg' ),
+			$source_id,
+			lienzo_validate_recipe( $raw ),
+			array( 'layer-one' => $this->staged_layer( 'layer-one' ) )
+		);
+
+		$this->assertNotWPError( $new_id );
+		$this->assertSame( '', get_post_meta( $new_id, LIENZO_SOURCE_META, true ) );
+		$this->assertNull( lienzo_get_recipe( $new_id ) );
+		$this->assertSame( array(), lienzo_get_layer_files( $new_id ) );
+		$this->assertSame( '', lienzo_layer_path( $new_id, 'layer-one' ) );
+	}
+
+	/**
+	 * The layer route answers 404 for a layer that was never stored, and streams a
+	 * stored one.
+	 *
+	 * @covers ::lienzo_rest_get_layer
+	 */
+	public function test_layer_route() {
+		wp_set_current_user( $this->admin );
+
+		$source_id = $this->make_image();
+		$new_id    = lienzo_store_render(
+			$this->staged_upload( DIR_TESTDATA . '/images/canola.jpg', 'canola.jpg' ),
+			$source_id,
+			$this->layered_recipe( $source_id, 'layer-paint' ),
+			array( 'layer-paint' => $this->staged_layer( 'layer-paint' ) )
+		);
+
+		$missing = rest_do_request(
+			new WP_REST_Request( 'GET', '/lienzo/v1/media/' . $new_id . '/layers/layer-nope' )
+		);
+
+		$this->assertSame( 404, $missing->get_status() );
+
+		$found = rest_do_request(
+			new WP_REST_Request( 'GET', '/lienzo/v1/media/' . $new_id . '/layers/layer-paint' )
+		);
+
+		$this->assertSame( 200, $found->get_status() );
+	}
 }

@@ -33,6 +33,7 @@ export interface PanelContextDeps {
 	getView: () => ViewPrefs;
 	setView: ( patch: Partial< ViewPrefs > ) => void;
 	addLayer: () => void;
+	editTextLayer: ( layerId: string ) => void;
 	getViewport: () => Viewport | null;
 	onViewportChange: ( listener: () => void ) => () => void;
 	onHistogram: ( listener: ( histogram: Histogram ) => void ) => () => void;
@@ -78,6 +79,7 @@ export function buildPanelContext( deps: PanelContextDeps ): PanelContext {
 		getActiveLayerId: () => store.current.activeLayerId,
 		setLayers: ( layers, activeId ) => store.setLayers( layers, activeId ),
 		addLayer: deps.addLayer,
+		editTextLayer: deps.editTextLayer,
 		getBrush: deps.getBrush,
 		setBrush: deps.setBrush,
 		getView: deps.getView,

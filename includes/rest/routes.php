@@ -124,6 +124,29 @@ function lienzo_register_rest_routes() {
 
 	register_rest_route(
 		LIENZO_REST_NAMESPACE,
+		'/media/(?P<id>[\d]+)/layers/(?P<layer>[A-Za-z0-9_-]+)',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => lienzo_rest_handler( 'lienzo_rest_get_layer' ),
+			'permission_callback' => 'lienzo_rest_permission',
+			'args'                => array(
+				'id'    => array(
+					'description'       => __( 'Attachment the layer was saved with.', 'allterrain-photo-editor' ),
+					'type'              => 'integer',
+					'required'          => true,
+					'sanitize_callback' => 'absint',
+				),
+				'layer' => array(
+					'description' => __( 'Layer id.', 'allterrain-photo-editor' ),
+					'type'        => 'string',
+					'required'    => true,
+				),
+			),
+		)
+	);
+
+	register_rest_route(
+		LIENZO_REST_NAMESPACE,
 		'/posts/(?P<id>[\d]+)/image',
 		array(
 			'methods'             => WP_REST_Server::READABLE,

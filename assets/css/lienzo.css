@@ -2603,3 +2603,50 @@ button.lz-palette__chip.is-selected {
 	gap: 8px;
 	justify-content: flex-end;
 }
+
+/* -- Text layers ------------------------------------------------------------- */
+
+/* The way back into a text layer, beside its name. */
+.lz-layer__edit {
+	flex: 0 0 auto;
+	appearance: none;
+	border: none;
+	background: transparent;
+	color: var( --lz-fg-muted );
+	font-size: 12px;
+	font-weight: 700;
+	font-family: Georgia, 'Times New Roman', serif;
+	inline-size: 22px;
+	block-size: 22px;
+	border-radius: var( --lz-radius );
+	cursor: pointer;
+}
+
+.lz-layer__edit:hover {
+	background: var( --lz-surface-raised );
+	color: var( --lz-fg );
+}
+
+/* -- OpenStation App Framework host ------------------------------------------ */
+
+/*
+ * The framework mounts the editor inside its own flex-column root. The editor's
+ * window chrome sizes itself to 100% of its parent, and a flex child that may
+ * shrink to nothing is what lets the stage take exactly the height the window has.
+ */
+.os-app[ data-os-app='lienzo' ] > .lienzo-root {
+	flex: 1 1 auto;
+	min-block-size: 0;
+}
+
+/* -- Layer opacity ------------------------------------------------------------ */
+
+.lz-layers__opacity {
+	margin-block-start: 6px;
+}
+
+.lz-layer__opacity {
+	margin-inline-start: 6px;
+	color: var( --lz-fg-muted );
+	font-size: 11px;
+}

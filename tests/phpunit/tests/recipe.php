@@ -472,4 +472,106 @@ class Tests_Lienzo_Recipe extends WP_UnitTestCase {
 		$this->assertWPError( $recipe );
 		$this->assertSame( 'lienzo_recipe_bad_version', $recipe->get_error_code() );
 	}
+
+	/**
+	 * A text layer keeps the words it was typed as, so it can be drawn -- and retyped --
+	 * again.
+	 *
+	 * @covers ::lienzo_validate_layers
+	 * @covers ::lienzo_validate_text_source
+	 */
+	public function test_text_layer_keeps_its_words() {
+		$recipe = lienzo_validate_recipe(
+			array(
+				'version'       => LIENZO_RECIPE_VERSION,
+				'source'        => 1,
+				'layers'        => array(
+					array(
+						'id'   => 'base',
+						'kind' => 'image',
+					),
+					array(
+						'id'   => 'layer-abc123',
+						'name' => 'I <3 you',
+						'kind' => 'text',
+						'text' => array(
+							'text'        => "I <3 you\nsecond line",
+							'size'        => 48,
+							'family'      => 'Georgia, serif',
+							'colour'      => '#00FF00',
+							'bold'        => true,
+							'italic'      => false,
+							'strokeWidth' => 2,
+						),
+					),
+				),
+				'activeLayerId' => 'layer-abc123',
+			)
+		);
+
+		$this->assertNotWPError( $recipe );
+		$this->assertSame( 'text', $recipe['layers'][1]['kind'] );
+		$this->assertSame( "I <3 you\nsecond line", $recipe['layers'][1]['text']['text'] );
+		$this->assertSame( 48.0, $recipe['layers'][1]['text']['size'] );
+		$this->assertSame( 'Georgia, serif', $recipe['layers'][1]['text']['family'] );
+		$this->assertSame( '#00FF00', $recipe['layers'][1]['text']['colour'] );
+		$this->assertTrue( $recipe['layers'][1]['text']['bold'] );
+		$this->assertFalse( $recipe['layers'][1]['text']['italic'] );
+		$this->assertSame( 2.0, $recipe['layers'][1]['text']['strokeWidth'] );
+		$this->assertArrayNotHasKey( 'text', $recipe['layers'][0] );
+	}
+
+	/**
+	 * A text layer with nothing to say is kept as a raster layer, so whatever pixels it
+	 * has are still shown.
+	 *
+	 * @covers ::lienzo_validate_layers
+	 */
+	public function test_text_layer_without_words_becomes_raster() {
+		$recipe = lienzo_validate_recipe(
+			array(
+				'version' => LIENZO_RECIPE_VERSION,
+				'source'  => 1,
+				'layers'  => array(
+					array(
+						'id'   => 'base',
+						'kind' => 'image',
+					),
+					array(
+						'id'   => 'layer-empty',
+						'kind' => 'text',
+						'text' => array( 'text' => "   \n " ),
+					),
+				),
+			)
+		);
+
+		$this->assertSame( 'raster', $recipe['layers'][1]['kind'] );
+		$this->assertArrayNotHasKey( 'text', $recipe['layers'][1] );
+	}
+
+	/**
+	 * A malformed source falls back field by field rather than being refused.
+	 *
+	 * @covers ::lienzo_validate_text_source
+	 */
+	public function test_text_source_falls_back_on_bad_fields() {
+		$source = lienzo_validate_text_source(
+			array(
+				'text'   => "ab\x07c",
+				'size'   => 'huge',
+				'colour' => 'red',
+			)
+		);
+
+		$this->assertSame( 'abc', $source['text'] );
+		$this->assertSame( 72.0, $source['size'] );
+		$this->assertSame( '#000000', $source['colour'] );
+		$this->assertSame( 'sans-serif', $source['family'] );
+		$this->assertFalse( $source['bold'] );
+		$this->assertSame( 0.0, $source['strokeWidth'] );
+
+		$this->assertNull( lienzo_validate_text_source( 'not an array' ) );
+		$this->assertNull( lienzo_validate_text_source( array( 'size' => 12 ) ) );
+	}
 }

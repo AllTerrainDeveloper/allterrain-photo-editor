@@ -15,13 +15,16 @@ defined( 'ABSPATH' ) || exit;
  * Stores a rendered image as a new attachment.
  *
  * @since 0.1.0
+ * @since 1.1.0 Accepts the painted layers' pixels, so the copy can open with them again.
  *
  * @param array $file      Uploaded file array from `WP_REST_Request::get_file_params()`.
  * @param int   $source_id Attachment the pixels were rendered from.
  * @param array $recipe    Validated recipe.
+ * @param array $layers    Optional. Uploaded layer files keyed by layer id, as
+ *                         `lienzo_layer_uploads()` returns them. Default none.
  * @return int|WP_Error New attachment ID, or an error.
  */
-function lienzo_store_render( $file, $source_id, $recipe ) {
+function lienzo_store_render( $file, $source_id, $recipe, $layers = array() ) {
 	// Sideloading runs from a REST request, where the admin includes are not loaded.
 	// Only the two files whose functions are called below: `wp_handle_sideload()` from
 	// file.php, and `wp_generate_attachment_metadata()` from image.php.
@@ -130,19 +133,31 @@ function lienzo_store_render( $file, $source_id, $recipe ) {
 
 	/*
 	 * A save is only re-editable from the original when the recipe describes all of
-	 * it. Adjustments, crops and transforms are instructions and replay exactly; a
-	 * painted, pasted or dropped layer is pixels, and those live nowhere but in the
-	 * flattened file just written.
+	 * it. Adjustments, crops, transforms and text are instructions and replay exactly;
+	 * a painted, pasted or dropped layer is pixels. Those used to live nowhere but in
+	 * the flattened file just written, and pointing such a save back at the original
+	 * told the editor to rebuild from pixels that never had the paint on them: the file
+	 * in the library was right, and opening it showed the original with an empty layer
+	 * where the painting had been.
 	 *
-	 * Pointing such a save back at the original told the editor to rebuild from pixels
-	 * that never had the paint on them: the file in the library was right, and opening
-	 * it showed the original with an empty layer where the painting had been. So a save
-	 * carrying pixels of its own becomes its own origin, and re-opening it shows exactly
-	 * what was saved.
+	 * Now the layers travel with the save, each as a PNG of its own, and the copy points
+	 * back at the original with a recipe that can be replayed in full. Only when a
+	 * layer could not come along -- too large for the site, or simply not sent -- does
+	 * the save become its own origin, so re-opening it shows exactly what was saved.
 	 */
-	if ( lienzo_recipe_is_reproducible( $recipe ) ) {
+	$stored = lienzo_store_layer_files( $attachment_id, $layers, $recipe );
+
+	if ( lienzo_recipe_is_reproducible( $recipe, array_keys( $stored ) ) ) {
 		update_post_meta( $attachment_id, LIENZO_SOURCE_META, $source_id );
 		update_post_meta( $attachment_id, LIENZO_RECIPE_META, wp_json_encode( $recipe ) );
+
+		if ( ! empty( $stored ) ) {
+			update_post_meta( $attachment_id, LIENZO_LAYERS_META, $stored );
+		}
+	} else {
+		// Half the layers are no use: the copy opens flattened, so nothing should
+		// suggest otherwise.
+		lienzo_delete_layer_files( $attachment_id );
 	}
 
 	$alt = get_post_meta( $source_id, '_wp_attachment_image_alt', true );

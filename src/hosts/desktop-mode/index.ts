@@ -15,7 +15,7 @@
 import { desktop, shellApi } from './desktop-api';
 import { registerFileOpener } from './file-opener';
 import { registerIconDrop } from './icon-drop';
-import './native-window';
+import { renderWindow } from './native-window';
 import { listenForOpenRequests } from './open-window';
 import { registerPeekThumbnail } from './peek';
 
@@ -127,3 +127,4 @@ function whenShellReady( run: () => void ): void {
 }
 
 export { isShellPage, openDesktopWindow, openInDesktop } from './open-window';
+export { renderWindow as renderDesktopWindow };

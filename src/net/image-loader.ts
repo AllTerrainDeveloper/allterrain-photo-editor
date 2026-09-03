@@ -102,6 +102,30 @@ export async function loadImageFile( file: File ): Promise< LoadedImage > {
 }
 
 /**
+ * Loads an image from bytes already in hand.
+ *
+ * A blob URL is same-origin by definition, so this can never taint the canvas. The URL
+ * is revoked with the image; holding one open pins the bytes for the life of the
+ * document.
+ *
+ * @param blob Encoded image.
+ * @return The loaded image and its cleanup.
+ * @throws {Error} When the bytes are not an image the browser can decode.
+ */
+export async function loadImageBlob( blob: Blob ): Promise< LoadedImage > {
+	const url = URL.createObjectURL( blob );
+
+	try {
+		const image = await loadElement( url );
+
+		return { image, release: () => URL.revokeObjectURL( url ), via: 'proxy' };
+	} catch ( error ) {
+		URL.revokeObjectURL( url );
+		throw error;
+	}
+}
+
+/**
  * Loads an attachment's full-size pixels, falling back to the REST byte proxy.
  *
  * @param payload Media payload from `GET /media/<id>`.

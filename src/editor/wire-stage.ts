@@ -7,6 +7,7 @@
  * one-line answers, and a long list of one-line answers reads better on its own.
  */
 
+import { findLayer } from '../model/document';
 import { dabRegion } from '../model/pixel-history';
 import { StageToolset } from './stage-toolset';
 import { SelectionOverlay } from './selection-overlay';
@@ -14,6 +15,7 @@ import { panelContext } from './adapters';
 import { EditorClipboard } from './clipboard';
 import type { ClipboardPixels } from './clipboard';
 import { paintTarget } from './paint-target';
+import { hitTextLayer } from './text-layer';
 import type { Editor } from './editor';
 
 /**
@@ -164,13 +166,33 @@ export function buildStageToolset( editor: Editor ): StageToolset {
 				toolset.cursor.draw();
 			},
 			// `place()` rather than `open()`: a press that finishes one piece of text
-			// does not also begin the next one.
-			onPlaceText: ( point ) => toolset.text.place( point ),
+			// does not also begin the next one. A press on text that already exists
+			// reopens it instead -- text is an object, and clicking an object with the
+			// tool that made it is how you get back into it.
+			onPlaceText: ( point ) => {
+				if ( toolset.text.isEditing ) {
+					toolset.text.place( point );
+
+					return;
+				}
+
+				const hit = hitTextLayer( store.current, renderer.paint, point );
+
+				if ( hit && editor.editText( hit.id ) ) {
+					return;
+				}
+
+				toolset.text.place( point );
+			},
 			maxEdgePixels: editor.config.maxEdgePixels,
 			// One history entry per stroke, not per dab -- and it carries the tiles the
 			// stroke overwrote, so undoing it puts the pixels back rather than
-			// restoring an identical recipe and appearing to do nothing.
-			onStrokeEnd: () => void editor.strokes?.commit(),
+			// restoring an identical recipe and appearing to do nothing. The stroke is
+			// closed first, so the layer holds its final pixels before they are filed.
+			onStrokeEnd: () => {
+				renderer.paint.endStroke();
+				void editor.strokes?.commit();
+			},
 		},
 		text: {
 			getStyle: () => {
@@ -184,8 +206,12 @@ export function buildStageToolset( editor: Editor ): StageToolset {
 					italic: brush.italic,
 				};
 			},
-			onCommit: ( text, point ) => {
-				if ( ! editor.drawText( text, point ) ) {
+			onCommit: ( text, point, layerId ) => {
+				const changed = layerId
+					? editor.replaceText( layerId, text, point )
+					: editor.drawText( text, point );
+
+				if ( ! changed ) {
 					return;
 				}
 
@@ -193,9 +219,54 @@ export function buildStageToolset( editor: Editor ): StageToolset {
 				// move it -- so hand the stage to transform, the same way a paste does.
 				state.setTool( 'transform' );
 			},
-			onStateChange: () => toolset.optionsBar.render(),
+			// The controls that restyle the text live here; a click on them must not
+			// finish it. The top bar's own actions are deliberately left out: pressing
+			// Save should commit the caret first, so the render carries the words.
+			chrome: [ shell.options, shell.sidebar ],
+			onStateChange: () => {
+				// The layer being retyped steps out of the picture while the caret is
+				// open, and back into it the moment the caret closes -- committed or not.
+				if ( ! toolset.text.isEditing ) {
+					renderer.hideLayer( null );
+				}
+
+				toolset.optionsBar.render();
+			},
 		},
 	} );
+
+	// Double-clicking text with the Transform tool reopens it, the way double-clicking
+	// a text box does in every layout program. The hit is taken under the pointer
+	// first, and falls back to the active layer for a double-click on its handles.
+	const onDoubleClick = ( event: MouseEvent ) => {
+		if ( 'transform' !== state.getTool() || toolset.text.isEditing ) {
+			return;
+		}
+
+		const viewport = renderer.view.viewport();
+		const canvas = store.current.canvas;
+		const rect = shell.stage.getBoundingClientRect();
+		const hit =
+			viewport && viewport.width > 0
+				? hitTextLayer( store.current, renderer.paint, {
+						x:
+							( ( event.clientX - rect.left - viewport.x ) / viewport.width ) *
+							canvas.width,
+						y:
+							( ( event.clientY - rect.top - viewport.y ) / viewport.height ) *
+							canvas.height,
+				  } )
+				: null;
+		const layer =
+			hit ?? findLayer( store.current.layers, store.current.activeLayerId );
+
+		if ( layer?.text && editor.editText( layer.id ) ) {
+			event.preventDefault();
+		}
+	};
+
+	shell.stage.addEventListener( 'dblclick', onDoubleClick );
+	editor.onTeardown( () => shell.stage.removeEventListener( 'dblclick', onDoubleClick ) );
 
 	toolset.setRulersVisible( state.getView().rulers );
 	shell.stage.classList.toggle( 'has-rulers', state.getView().rulers );

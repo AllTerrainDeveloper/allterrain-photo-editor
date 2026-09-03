@@ -18,6 +18,11 @@
 		<exclude name="WordPress.WP.EnqueuedResources"/>
 	</rule>
 
+	<!-- OpenStation's App Framework finds an app by the `.os.php` suffix; the dot is the contract. -->
+	<rule ref="WordPress.Files.FileName.NotHyphenatedLowercase">
+		<exclude-pattern>*/apps/*/*.os.php</exclude-pattern>
+	</rule>
+
 	<config name="testVersion" value="7.4-"/>
 	<rule ref="PHPCompatibilityWP"/>
 

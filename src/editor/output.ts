@@ -8,7 +8,7 @@
  */
 
 import { __ } from '../i18n';
-import type { RestClient } from '../net/rest';
+import type { LayerUpload, RestClient } from '../net/rest';
 import { toast } from '../platform';
 import type { MediaPayload, SaveResult } from '../types';
 import { download, exportFilename, savedMessage } from './download';
@@ -17,11 +17,21 @@ import type { RecipeStore } from './recipe-store';
 /** Renders the edit at full resolution. */
 export type RenderFull = ( format: string, quality: number ) => Promise< Blob >;
 
+/** What the output path needs from the renderer. */
+export interface OutputRenderer {
+	renderFull: RenderFull;
+	sourceSize: { width: number };
+	/** A layer's pixels as a PNG, or null when it has none. */
+	exportLayer: ( layerId: string ) => Promise< Blob | null >;
+}
+
 export interface OutputOptions {
 	store: RecipeStore;
 	client: RestClient;
+	/** The largest file the render endpoint accepts, in bytes. */
+	maxUploadBytes: number;
 	/** Null until the renderer has started. */
-	getRenderer: () => { renderFull: RenderFull; sourceSize: { width: number } } | null;
+	getRenderer: () => OutputRenderer | null;
 	getPayload: () => MediaPayload | null;
 	/** True once the editor has been torn down, so a late result is dropped. */
 	isDestroyed: () => boolean;
@@ -100,10 +110,17 @@ export class OutputController {
 		try {
 			this.setBusy( true );
 
+			const layers = await this.exportLayers();
+
+			if ( this.options.isDestroyed() ) {
+				return null;
+			}
+
 			const result = await this.options.client.saveRender(
 				payload.id,
 				blob,
-				this.options.store.current
+				this.options.store.current,
+				layers
 			);
 
 			toast( savedMessage( result, rendered?.width ), 'success' );
@@ -116,6 +133,46 @@ export class OutputController {
 		} finally {
 			this.setBusy( false );
 		}
+	}
+
+	/**
+	 * Encodes every painted layer, so the copy can be opened with them again.
+	 *
+	 * All or nothing. A save is only re-editable when every raster layer travels with
+	 * it, so one layer too large for the site to accept means none go and the copy
+	 * flattens -- which the server reports, and the banner explains -- rather than a
+	 * copy that opens with half its layers.
+	 *
+	 * @return The layers to upload; empty when the save should flatten.
+	 */
+	private async exportLayers(): Promise< LayerUpload[] > {
+		const renderer = this.options.getRenderer();
+
+		if ( ! renderer ) {
+			return [];
+		}
+
+		const layers: LayerUpload[] = [];
+
+		for ( const layer of this.options.store.current.layers ) {
+			if ( 'raster' !== layer.kind ) {
+				continue;
+			}
+
+			const blob = await renderer.exportLayer( layer.id );
+
+			if ( ! blob ) {
+				continue;
+			}
+
+			if ( blob.size > this.options.maxUploadBytes ) {
+				return [];
+			}
+
+			layers.push( { id: layer.id, blob } );
+		}
+
+		return layers;
 	}
 
 	/**
