@@ -3,7 +3,7 @@
  * Plugin Name:       AllTerrain Photo Editor for OpenStation
  * Plugin URI:        https://github.com/AllTerrainDeveloper/allterrain-photo-editor
  * Description:       A modern, non-destructive image editor for the WordPress media library. Exposure, colour and tone adjustments rendered on the GPU, in the browser.
- * Version:           1.1.0
+ * Version:           1.1.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Daniel Lopez
@@ -37,7 +37,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'LIENZO_VERSION', '1.1.0' );
+define( 'LIENZO_VERSION', '1.1.1' );
 define( 'LIENZO_FILE', __FILE__ );
 define( 'LIENZO_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LIENZO_URL', plugin_dir_url( __FILE__ ) );

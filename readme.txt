@@ -5,7 +5,7 @@ Requires at least: 6.0
 Requires Plugins: desktop-mode
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -138,6 +138,12 @@ This plugin bundles no third-party libraries and makes no external or CDN reques
 Rendering uses PixiJS (MIT), which is bundled by the OpenStation plugin and served from your own server. AllTerrain Photo Editor asks OpenStation for it rather than shipping a second copy: that keeps this plugin small, and two instances of the same rendering library on one page share GPU resources through globals, where tearing one down can break the other.
 
 == Changelog ==
+
+= 1.1.1 =
+* Improved compatibility with OpenStation image drags from the wallpaper and file windows, including attachment payloads without the older bridge wrapper.
+* Stored desktop images can be dropped into the editor as layers. Their Media Library copy is created or reused only when the drop lands.
+* Improved Media Library drops when the browser strips attachment data between windows, and prevented covered editor windows from claiming another window's drop.
+* Browser image and file drops also work in the standalone admin editor and modal canvas. Improved image URL handling and cleanup when editor windows close.
 
 = 1.1.0 =
 * With thanks to WP103 (https://www.youtube.com/@wordpress103) for the feedback that drove this release: the text that could not be edited again, the eraser that ignored its opacity, and the saved copy that could not be reopened for editing.
