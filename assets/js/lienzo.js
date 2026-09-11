@@ -7804,38 +7804,94 @@ fn mainFragment(
     link.textContent = __("Upload a photo");
     ui.root.appendChild(link);
   }
+  function readBridgeImage(record) {
+    if (!record || typeof record !== "object") {
+      return null;
+    }
+    const data = record;
+    const kind = data.kind;
+    if (kind !== "attachment" && kind !== "media" && kind !== "upload") {
+      return null;
+    }
+    const mime = data.mime;
+    if (typeof mime === "string" && mime && (!mime.startsWith("image/") || window.lienzoConfig && !window.lienzoConfig.supportedMimes.includes(mime))) {
+      return null;
+    }
+    if (kind === "upload" && (typeof mime !== "string" || !mime)) {
+      return null;
+    }
+    const id = Number(kind === "upload" ? data.fileId ?? data.ref : data.id ?? data.ref ?? data.mediaId);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      return null;
+    }
+    return {
+      kind: kind === "upload" ? "upload" : "attachment",
+      id,
+      ...typeof data.title === "string" ? { title: data.title } : {}
+    };
+  }
+  function readDesktopImage(payload) {
+    const data = payload.data ?? {};
+    if (data.bridgePayload) {
+      return readBridgeImage(data.bridgePayload);
+    }
+    if (payload.type === "desktop-file") {
+      const placement = data.placement;
+      const file = placement?.file;
+      return file ? readBridgeImage({ ...file, kind: file.type }) : null;
+    }
+    if (payload.type === "shortcut" || payload.type === "attachment") {
+      return readBridgeImage({ ...data, kind: data.kind ?? payload.type });
+    }
+    return null;
+  }
+  const targetPrefix = `lienzo-window-${Math.random().toString(36).slice(2)}`;
+  let nextTarget = 0;
   function registerDropTarget(element, drop) {
     const manager = desktop()?.dragManager;
     if (!manager?.registerDropTarget) {
       return null;
     }
-    const attachmentOf = (payload) => {
-      const bridge = payload.data?.bridgePayload;
-      if (bridge?.kind !== "attachment") {
-        return 0;
-      }
-      if (bridge.mime && !window.lienzoConfig?.supportedMimes.includes(bridge.mime)) {
-        return 0;
-      }
-      return Number(bridge.id ?? 0);
-    };
-    return manager.registerDropTarget({
-      id: "lienzo-window",
+    let disposed = false;
+    const release = manager.registerDropTarget({
+      id: `${targetPrefix}-${++nextTarget}`,
       element,
-      accept: (payload) => attachmentOf(payload) > 0,
+      accept: (payload) => {
+        const image = readDesktopImage(payload);
+        return !!image && (image.kind === "attachment" || !!desktop()?.files?.rest?.addUploadToMediaLibrary);
+      },
       acceptLabel: __("Add as a layer"),
-      onDrop: (session, at) => {
-        const id = attachmentOf(session.payload);
-        if (!id) {
+      onDrop: async (session, at) => {
+        const image = readDesktopImage(session.payload);
+        if (!image || disposed) {
           return;
         }
-        drop({
-          attachmentId: id,
-          clientX: at?.clientX,
-          clientY: at?.clientY
-        });
+        try {
+          let attachmentId = image.id;
+          let title = image.title;
+          if (image.kind === "upload") {
+            const rest = desktop()?.files?.rest;
+            if (!rest?.addUploadToMediaLibrary) {
+              return;
+            }
+            const attachment = await rest.addUploadToMediaLibrary(image.id);
+            attachmentId = attachment.attachmentId;
+            title = attachment.title || title;
+          }
+          if (!disposed) {
+            drop({ attachmentId, title, clientX: at?.clientX, clientY: at?.clientY });
+          }
+        } catch (error) {
+          if (!disposed) {
+            toast(error instanceof Error ? error.message : __("That image could not be added."), "error");
+          }
+        }
       }
     });
+    return () => {
+      disposed = true;
+      release();
+    };
   }
   const ATTACHMENT_TYPE = "application/x-lienzo-attachment";
   const CANDIDATES = [
@@ -7894,7 +7950,7 @@ fn mainFragment(
       return { file };
     }
     const tagged = Number(transfer.getData(ATTACHMENT_TYPE));
-    if (tagged > 0) {
+    if (Number.isSafeInteger(tagged) && tagged > 0) {
       return { attachmentId: tagged };
     }
     const record = readMediaRecord(transfer);
@@ -7907,11 +7963,11 @@ fn mainFragment(
       return { attachmentId: Number(id) };
     }
     const list = transfer.getData("text/uri-list") || transfer.getData("text/plain");
-    const url = list.split(/[\r\n]+/).map((line) => line.trim()).find((line) => line && !line.startsWith("#"));
-    if (url && IMAGE_URL.test(url)) {
+    const url = list.split(/[\r\n]+/).map((line) => line.trim()).find((line) => line && !line.startsWith("#") && (IMAGE_URL.test(line) || /^data:image\//i.test(line) || /^blob:/i.test(line)));
+    if (url) {
       return { url };
     }
-    const src = /<img[^>]+src=["']([^"']+)/i.exec(html)?.[1];
+    const src = html ? new DOMParser().parseFromString(html, "text/html").querySelector("img[src]")?.getAttribute("src") : null;
     return src ? { url: src } : null;
   }
   const WP_MEDIA_TYPE = "application/x-wp-media-attachment";
@@ -7934,13 +7990,19 @@ fn mainFragment(
     }
   }
   function attachFileDrop(element, drop) {
+    const doc = element.ownerDocument;
+    const bridgeImage = () => {
+      const image = readBridgeImage(desktop()?.dragBridge?.getPayload?.());
+      return image?.kind === "attachment" ? image : null;
+    };
     const looksLikeImage = (event) => {
       const types = Array.from(event.dataTransfer?.types ?? []);
-      return types.includes(ATTACHMENT_TYPE) || types.includes(WP_MEDIA_TYPE) || types.includes("Files") || types.includes("text/uri-list") || types.includes("text/html") || types.includes("text/plain");
+      return !!bridgeImage() || types.includes(ATTACHMENT_TYPE) || types.includes(WP_MEDIA_TYPE) || types.includes("Files") || types.includes("text/uri-list") || types.includes("text/html") || types.includes("text/plain");
     };
     const inside = (event) => {
       const box = element.getBoundingClientRect();
-      return box.width > 0 && event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom;
+      const hit = doc.elementFromPoint(event.clientX, event.clientY);
+      return element.isConnected && !!hit && element.contains(hit) && box.width > 0 && event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom;
     };
     const onOver = (event) => {
       if (!looksLikeImage(event) || !inside(event)) {
@@ -7961,11 +8023,13 @@ fn mainFragment(
     };
     const onDrop = (event) => {
       element.classList.remove("is-drop-target");
-      if (!inside(event)) {
+      if (!looksLikeImage(event) || !inside(event)) {
         return;
       }
-      const dropped = readDroppedImage(event.dataTransfer);
+      const bridge = bridgeImage();
+      const dropped = bridge ? { attachmentId: bridge.id, title: bridge.title } : readDroppedImage(event.dataTransfer);
       event.preventDefault();
+      event.stopPropagation();
       if (!dropped) {
         toast(
           sprintf(
@@ -7978,13 +8042,19 @@ fn mainFragment(
       }
       drop({ ...dropped, clientX: event.clientX, clientY: event.clientY });
     };
-    document.addEventListener("dragover", onOver, true);
-    document.addEventListener("dragleave", onLeave, true);
-    document.addEventListener("drop", onDrop, true);
+    doc.addEventListener("dragover", onOver, true);
+    doc.addEventListener("dragleave", onLeave, true);
+    doc.addEventListener("drop", onDrop, true);
+    doc.addEventListener("dragend", clearHighlight, true);
+    function clearHighlight() {
+      element.classList.remove("is-drop-target");
+    }
     return () => {
-      document.removeEventListener("dragover", onOver, true);
-      document.removeEventListener("dragleave", onLeave, true);
-      document.removeEventListener("drop", onDrop, true);
+      doc.removeEventListener("dragover", onOver, true);
+      doc.removeEventListener("dragleave", onLeave, true);
+      doc.removeEventListener("drop", onDrop, true);
+      doc.removeEventListener("dragend", clearHighlight, true);
+      clearHighlight();
     };
   }
   function attachDragOut(root, result) {
@@ -13272,6 +13342,11 @@ fn mainFragment(
     pushToRenderer(renderer, editor.store.current, "all");
     editor.syncToolbar();
     editor.onTeardown(attachEditorShortcuts(shortcutTarget(editor)));
+    if (editor.options.host !== "window") {
+      editor.onTeardown(attachFileDrop(editor.shell.stage, (dropped) => {
+        void editor.addImageLayer(dropped);
+      }));
+    }
     editor.shell.setTitle(payload.title);
   }
   async function restoreLayers(editor) {

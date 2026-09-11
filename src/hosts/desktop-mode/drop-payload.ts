@@ -52,7 +52,7 @@ export function readDroppedImage(
 	// there is nothing to infer.
 	const tagged = Number( transfer.getData( ATTACHMENT_TYPE ) );
 
-	if ( tagged > 0 ) {
+	if ( Number.isSafeInteger( tagged ) && tagged > 0 ) {
 		return { attachmentId: tagged };
 	}
 
@@ -80,14 +80,16 @@ export function readDroppedImage(
 	const url = list
 		.split( /[\r\n]+/ )
 		.map( ( line ) => line.trim() )
-		.find( ( line ) => line && ! line.startsWith( '#' ) );
+		.find( ( line ) => line && ! line.startsWith( '#' ) &&
+			( IMAGE_URL.test( line ) || /^data:image\//i.test( line ) || /^blob:/i.test( line ) ) );
 
-	if ( url && IMAGE_URL.test( url ) ) {
+	if ( url ) {
 		return { url };
 	}
 
 	// A dragged `<img>` offers markup even when it offers no usable URL list.
-	const src = /<img[^>]+src=["']([^"']+)/i.exec( html )?.[ 1 ];
+	const src = html ? new DOMParser().parseFromString( html, 'text/html' )
+		.querySelector( 'img[src]' )?.getAttribute( 'src' ) : null;
 
 	return src ? { url: src } : null;
 }
