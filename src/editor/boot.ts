@@ -22,6 +22,7 @@ import { attachEditorShortcuts } from './shortcuts';
 import { StrokeRecorder } from './stroke-recorder';
 import { rasteriseTextLayer } from './text-layer';
 import { buildStageToolset } from './wire-stage';
+import { attachFileDrop } from '../hosts/desktop-mode/file-drop';
 
 /**
  * Loads the image and brings the editor up.
@@ -121,6 +122,13 @@ async function startRenderer( editor: Editor ): Promise< void > {
 	pushToRenderer( renderer, editor.store.current, 'all' );
 	editor.syncToolbar();
 	editor.onTeardown( attachEditorShortcuts( shortcutTarget( editor ) ) );
+	// Native windows also accept drops on their empty picker. Other hosts need the
+	// same browser-file support once their canvas is ready.
+	if ( editor.options.host !== 'window' ) {
+		editor.onTeardown( attachFileDrop( editor.shell.stage, ( dropped ) => {
+			void editor.addImageLayer( dropped );
+		} ) );
+	}
 	editor.shell.setTitle( payload.title );
 }
 

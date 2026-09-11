@@ -502,16 +502,22 @@ sit inside the canvas. Deliberately not "open this instead": a drop onto a docum
 already in progress means *combine them*, and replacing it would throw away the work.
 An empty window has nothing to combine with, so there a drop opens.
 
-Three quite different things arrive at one handler, because three quite different drags
-end up here:
+These sources arrive at the same layer importer:
 
 - **An attachment**, from a My WordPress media tile or a desktop icon, through the
   shell's drag manager. Its pixels load via the same CORS-safe path the document uses, so
   a CDN-served file falls back to the byte proxy instead of tainting the canvas.
+- **A stored desktop image** (`upload`), from the wallpaper or a folder. On drop,
+  `wp.os.files.rest.addUploadToMediaLibrary()` resolves it to an attachment, reusing
+  an existing Media Library copy. Hovering creates nothing. Storage ids are never
+  treated as attachment ids. This path requires that shell API and permission to
+  add the stored file to the Media Library; server errors appear as a toast.
 - **A media record**, which is what dragging a thumbnail out of the **Media Library**
   carries: the shell's enhancement makes every `.attachment` draggable and writes the
   whole record as JSON on `application/x-wp-media-attachment`. That is the canonical
   contract for a WordPress media drag, and reading it beats inferring an id from markup.
+  When the browser strips cross-frame drag data, the active
+  `wp.os.dragBridge.getPayload()` attachment supplies the original image identity.
 - **A URL**, from `text/uri-list`, `text/plain` or an `<img src>` in `text/html`, for
   drags carrying no record. A generated size (`photo-150x150.jpg`) is stripped to load
   the original, falling back to the URL as dragged — a file legitimately named
@@ -519,13 +525,16 @@ end up here:
 - **A file**, from Finder or Explorer. No upload needed: blob URL straight into a
   texture, like a paste.
 
-These are listened for on the **document** and then hit-tested against the window body's
-bounds, not bound to the body itself. A drag across the desktop passes over the shell's
-own furniture — overlays, drag layers, window chrome — and an event whose target is one
-of those never reaches a listener on an element it is not inside. Bubbling to the
-document always happens; the hit test is what stops us claiming drops meant for someone
-else. Capture phase, so the drop is claimed before the shell's document-level handlers,
-which yield to anything that has already called `preventDefault()`.
+Browser drops are listened for on the **document** in capture phase. Both the bounds
+and the element under the pointer must belong to the editor: a covered or hidden window
+cannot steal a drop from another window. Accepted drops cancel browser navigation and
+stop propagation to ancestor handlers. File and browser-image drops also work on the
+standalone admin editor and the modal canvas.
+
+The shell target understands `desktop-file.data.placement.file`, `shortcut` and
+`attachment` records as well as the older `data.bridgePayload` wrapper. Every window
+gets its own registration, released on teardown; closing a window during an asynchronous
+storage lookup prevents a late import into that closed editor.
 
 A drop that lands on the editor and cannot be read now says so, listing the types it
 found. Silence is indistinguishable from a broken feature — which is precisely how the

@@ -35,6 +35,13 @@ export interface DesktopApi {
 	whenReady?: ( callback: () => void ) => void;
 	openWindow?: ( id: string, opts?: { source?: string } ) => boolean;
 	files?: {
+		rest?: {
+			/** Resolve desktop storage into a Media Library attachment at drop time. */
+			addUploadToMediaLibrary?: ( fileId: number ) => Promise< {
+				attachmentId: number;
+				title: string;
+			} >;
+		};
 		registerOpener?: ( def: {
 			id: string;
 			label: string;
@@ -65,11 +72,12 @@ export interface DesktopApi {
 			onDrop: (
 				session: { payload: DragPayloadLike },
 				at: { clientX: number; clientY: number }
-			) => void;
+			) => void | Promise< void >;
 			acceptLabel?: string;
 		} ) => () => void;
 	};
 	dragBridge?: {
+		getPayload?: () => Record< string, unknown > | null;
 		start?: ( payload: Record< string, unknown > ) => void;
 		end?: () => void;
 	};

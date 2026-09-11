@@ -11,6 +11,8 @@ import { __, sprintf } from '../../i18n';
 import { ATTACHMENT_TYPE } from '../media-drag';
 import { toast } from '../../platform';
 import { readDroppedImage, WP_MEDIA_TYPE } from './drop-payload';
+import { desktop } from './desktop-api';
+import { readBridgeImage } from './image-payload';
 
 /**
  * Accepts images dragged onto the editor by the browser.
@@ -21,12 +23,9 @@ import { readDroppedImage, WP_MEDIA_TYPE } from './drop-payload';
  * Library window, which is an iframe whose drags reach the parent as ordinary
  * `dragover`/`drop` events.
  *
- * Listened for on the **document**, not on the window body, and then hit-tested against
- * the body's bounds. A drag over the desktop passes over a good deal of the shell's own
- * furniture -- overlays, drag layers, the window chrome -- and an event whose target is
- * one of those never reaches a listener bound to an element it is not inside. Bubbling
- * to the document always happens; the hit test is what keeps us from claiming drops
- * meant for someone else.
+ * Listened for on the document in capture phase. The point must be inside the body
+ * and hit one of its descendants, so covered windows cannot claim somebody else's
+ * drop. The active bridge supplies attachment data browsers may strip between frames.
  *
  * @param element Drop area, used for hit-testing and for the highlight.
  * @param drop    Called with each image dropped.
@@ -36,6 +35,11 @@ export function attachFileDrop(
 	element: HTMLElement,
 	drop: ( dropped: DroppedImage ) => void
 ): () => void {
+	const doc = element.ownerDocument;
+	const bridgeImage = () => {
+		const image = readBridgeImage( desktop()?.dragBridge?.getPayload?.() );
+		return image?.kind === 'attachment' ? image : null;
+	};
 	/**
 	 * Whether a drag looks like it holds an image.
 	 *
@@ -47,6 +51,7 @@ export function attachFileDrop(
 		const types = Array.from( event.dataTransfer?.types ?? [] );
 
 		return (
+			!! bridgeImage() ||
 			types.includes( ATTACHMENT_TYPE ) ||
 			types.includes( WP_MEDIA_TYPE ) ||
 			types.includes( 'Files' ) ||
@@ -59,8 +64,11 @@ export function attachFileDrop(
 	/** Whether a point is inside the drop area. */
 	const inside = ( event: DragEvent ): boolean => {
 		const box = element.getBoundingClientRect();
+		const hit = doc.elementFromPoint( event.clientX, event.clientY );
 
 		return (
+			element.isConnected &&
+			!! hit && element.contains( hit ) &&
 			box.width > 0 &&
 			event.clientX >= box.left &&
 			event.clientX <= box.right &&
@@ -99,16 +107,20 @@ export function attachFileDrop(
 	const onDrop = ( event: DragEvent ) => {
 		element.classList.remove( 'is-drop-target' );
 
-		if ( ! inside( event ) ) {
+		if ( ! looksLikeImage( event ) || ! inside( event ) ) {
 			return;
 		}
 
-		const dropped = readDroppedImage( event.dataTransfer );
+		const bridge = bridgeImage();
+		const dropped = bridge
+			? { attachmentId: bridge.id, title: bridge.title }
+			: readDroppedImage( event.dataTransfer );
 
 		// Always claimed, even when unusable. `dragover` already told the user this was
 		// a valid target by highlighting; letting the browser have the drop after that
 		// would navigate the whole desktop to the dragged URL.
 		event.preventDefault();
+		event.stopPropagation();
 
 		if ( ! dropped ) {
 			// Said out loud rather than swallowed. A drop that highlights and then does
@@ -129,16 +141,22 @@ export function attachFileDrop(
 		drop( { ...dropped, clientX: event.clientX, clientY: event.clientY } );
 	};
 
-	// Capture phase, so a drop is claimed before the shell's own document-level
-	// handlers can take it -- they yield to anything that has already called
-	// `preventDefault()`, which is exactly what this does when the point is ours.
-	document.addEventListener( 'dragover', onOver, true );
-	document.addEventListener( 'dragleave', onLeave, true );
-	document.addEventListener( 'drop', onDrop, true );
+	// Claim before ancestor upload handlers; leave document-level bridge cleanup
+	// running so the next cross-frame gesture starts with a fresh session.
+	doc.addEventListener( 'dragover', onOver, true );
+	doc.addEventListener( 'dragleave', onLeave, true );
+	doc.addEventListener( 'drop', onDrop, true );
+	doc.addEventListener( 'dragend', clearHighlight, true );
+
+	function clearHighlight(): void {
+		element.classList.remove( 'is-drop-target' );
+	}
 
 	return () => {
-		document.removeEventListener( 'dragover', onOver, true );
-		document.removeEventListener( 'dragleave', onLeave, true );
-		document.removeEventListener( 'drop', onDrop, true );
+		doc.removeEventListener( 'dragover', onOver, true );
+		doc.removeEventListener( 'dragleave', onLeave, true );
+		doc.removeEventListener( 'drop', onDrop, true );
+		doc.removeEventListener( 'dragend', clearHighlight, true );
+		clearHighlight();
 	};
 }
