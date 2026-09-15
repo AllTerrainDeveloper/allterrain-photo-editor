@@ -40,6 +40,21 @@ function lienzo_register_assets() {
 
 	wp_set_script_translations( 'lienzo', 'allterrain-photo-editor', LIENZO_DIR . 'languages' );
 
+	// The config rides on the *registered* handle rather than being attached at
+	// enqueue time. OpenStation harvests a handle's inline data off the registered
+	// handle when it builds a window payload, so a live activation -- where the
+	// shell page's enqueue never ran -- still gets `window.lienzoConfig`. Every
+	// enqueue path prints it exactly once, as before.
+	//
+	// JSON via `wp_add_inline_script()` rather than `wp_localize_script()`, which
+	// casts every scalar to a string on its way to the browser -- `true` arrives
+	// as `'1'` and `false` as `''`. Fine for text, quietly wrong for a flag.
+	wp_add_inline_script(
+		'lienzo',
+		'window.lienzoConfig = ' . wp_json_encode( lienzo_get_config() ) . ';',
+		'before'
+	);
+
 	wp_register_style(
 		'lienzo',
 		LIENZO_URL . 'assets/css/lienzo.css',
@@ -75,35 +90,19 @@ function lienzo_asset_version( $relative ) {
 }
 
 /**
- * Enqueues the editor bundle and hands it its runtime configuration.
+ * Enqueues the editor bundle and its stylesheet.
  *
- * Safe to call more than once per request; the second call is a no-op because the
- * inline script is only added the first time the handle is enqueued.
- *
- * The config goes out as JSON via `wp_add_inline_script()` rather than through
- * `wp_localize_script()`, which casts every scalar to a string on its way to the
- * browser -- `true` arrives as `'1'` and `false` as `''`. That is fine for text and
- * quietly wrong for a flag: a strict check against `true` fails, and the JavaScript
- * concludes OpenStation is off while PHP is saying it is on. Booleans and numbers now
- * arrive as booleans and numbers.
+ * The runtime configuration is already on the handle: `lienzo_register_assets()`
+ * attaches `window.lienzoConfig` at registration, so enqueuing is all that is left
+ * to do here. Safe to call more than once per request.
  *
  * @since 0.1.0
  *
  * @return void
  */
 function lienzo_enqueue_editor() {
-	if ( wp_script_is( 'lienzo', 'enqueued' ) ) {
-		return;
-	}
-
 	wp_enqueue_script( 'lienzo' );
 	wp_enqueue_style( 'lienzo' );
-
-	wp_add_inline_script(
-		'lienzo',
-		'window.lienzoConfig = ' . wp_json_encode( lienzo_get_config() ) . ';',
-		'before'
-	);
 }
 
 /**
