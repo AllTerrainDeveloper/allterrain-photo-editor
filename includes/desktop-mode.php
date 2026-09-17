@@ -60,6 +60,7 @@ function lienzo_maybe_init_desktop_mode() {
 
 	if ( lienzo_uses_app_framework() ) {
 		add_filter( 'openstation_apps_directories', 'lienzo_register_apps_directory' );
+		add_filter( 'openstation_app_window_args', 'lienzo_app_window_args', 10, 2 );
 		add_action( 'init', 'lienzo_register_file_opener', 20 );
 	} else {
 		add_action( 'init', 'lienzo_register_desktop_window', 20 );
@@ -104,6 +105,37 @@ function lienzo_register_apps_directory( $dirs ) {
 	$dirs[] = LIENZO_DIR . 'apps';
 
 	return $dirs;
+}
+
+/**
+ * Rides the editor bundle and its stylesheet on the app window.
+ *
+ * The client view in `apps/photo-editor/photo-editor.os.php` only mounts the
+ * editor; the editor itself is the `lienzo` handle, which until now reached the
+ * page solely through the boot-time enqueue in `lienzo_enqueue_in_shell()`. A
+ * plugin activated mid-session never got that enqueue, so the window opened and
+ * stayed blank until a reload. Naming the handle here is what lets the shell load
+ * it with the window on first open, live activation included.
+ *
+ * @since 1.1.2
+ *
+ * @param array  $args `openstation_register_window()` args.
+ * @param string $id   App id.
+ * @return array Args, with the editor bundle and stylesheet declared.
+ */
+function lienzo_app_window_args( $args, $id ) {
+	if ( 'lienzo' !== $id ) {
+		return $args;
+	}
+
+	$args = (array) $args;
+
+	// Ahead of the client bundle, so `window.lienzo` exists before the client
+	// view's first mount attempt rather than its first poll.
+	$args['scripts'] = array_merge( array( 'lienzo' ), (array) ( $args['scripts'] ?? array() ) );
+	$args['styles']  = array_merge( (array) ( $args['styles'] ?? array() ), array( 'lienzo' ) );
+
+	return $args;
 }
 
 /**
@@ -207,13 +239,15 @@ function lienzo_render_desktop_template() {
 }
 
 /**
- * Loads the editor assets into OpenStation.
+ * Loads the editor assets into OpenStation at boot.
  *
  * `openstation_mode_init` fires while the shell itself is rendering, which is the
- * documented place for a plugin to enqueue shell-level code. Registering the script
- * handle on the window is not enough on its own: the shell enqueues the handle but
- * never runs our `wp_localize_script()`, so the bundle would boot without its
- * configuration.
+ * documented place for a plugin to enqueue shell-level code. A normal boot gets the
+ * editor bundle up front this way. It is no longer the only path in: the app window
+ * declares the same handles through `lienzo_app_window_args()`, so a plugin
+ * activated mid-session -- which never saw this hook fire -- loads them on first
+ * open instead. The shell prints an enqueued handle once, so a boot that took both
+ * paths does not inject the bundle twice.
  *
  * @since 0.1.0
  *
