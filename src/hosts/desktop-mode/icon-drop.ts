@@ -14,12 +14,25 @@
  */
 
 import { __ } from '../../i18n';
+import { toast } from '../../platform';
 import { desktop, state, WINDOW_ID } from './desktop-api';
-import type { TilePayloadContext } from './desktop-api';
+import type { TilePayloadContext, TilePayloadHandler } from './desktop-api';
+import {
+	canResolveDesktopImage,
+	readDesktopImage,
+	resolveDesktopImage,
+} from './image-payload';
+import type { DesktopImage } from './image-payload';
 import { openInDesktop, openPostInDesktop } from './open-window';
 
-/** Payload types worth accepting. Anything else keeps the shell's rejection. */
-const ACCEPTED = [ 'attachment', 'shortcut' ];
+/**
+ * Payload types worth accepting. Anything else keeps the shell's rejection.
+ *
+ * `desktop-file` is a tile dragged off the wallpaper itself -- a photo saved to the
+ * desktop, a Media Library item pinned there, a product placed there. It is the drag
+ * people try first, and the one the icon used to refuse.
+ */
+const ACCEPTED = [ 'attachment', 'shortcut', 'desktop-file' ];
 
 /**
  * Whether a tile is ours.
@@ -72,24 +85,109 @@ export function postFrom( data: Record< string, unknown > ): number {
 }
 
 /**
- * Opens whatever was dropped.
+ * The image a payload carries, when it carries one.
  *
+ * A wallpaper tile is read the way the editor window reads it, so a photo that opens
+ * when dropped on the window opens when dropped on the icon. The other two types keep
+ * their lenient reading: a site-window shortcut may name its id without a `kind`.
+ *
+ * @param type Payload type.
  * @param data Payload data.
  */
-function openDropped( data: Record< string, unknown > ): void {
-	const attachment = attachmentFrom( data );
+export function imageFrom(
+	type: string,
+	data: Record< string, unknown >
+): DesktopImage | null {
+	if ( 'desktop-file' === type ) {
+		return readDesktopImage( { type, data } );
+	}
 
-	if ( attachment ) {
-		openInDesktop( attachment );
+	const id = attachmentFrom( data );
+
+	return id ? { kind: 'attachment', id } : null;
+}
+
+/**
+ * A post id out of a payload, when it carries one.
+ *
+ * A post placed on the wallpaper drags as a `desktop-file` whose placement says
+ * `post`; one dragged out of the site window is a `shortcut` saying the same thing.
+ *
+ * @param type Payload type.
+ * @param data Payload data.
+ */
+export function droppedPostFrom( type: string, data: Record< string, unknown > ): number {
+	if ( 'desktop-file' !== type ) {
+		return postFrom( data );
+	}
+
+	const file = ( data.placement as { file?: Record< string, unknown > } | undefined )?.file;
+
+	return file ? postFrom( { kind: file.type, ref: file.ref } ) : 0;
+}
+
+/**
+ * Whether the icon should light up for a payload.
+ *
+ * @param type Payload type.
+ * @param data Payload data.
+ */
+export function acceptsDrop( type: string, data: Record< string, unknown > ): boolean {
+	const image = imageFrom( type, data );
+
+	if ( image ) {
+		return canResolveDesktopImage( image );
+	}
+
+	return !! droppedPostFrom( type, data );
+}
+
+/**
+ * Opens whatever was dropped.
+ *
+ * @param type Payload type.
+ * @param data Payload data.
+ */
+async function openDropped( type: string, data: Record< string, unknown > ): Promise< void > {
+	const image = imageFrom( type, data );
+
+	if ( image ) {
+		try {
+			const { attachmentId } = await resolveDesktopImage( image );
+
+			openInDesktop( attachmentId );
+		} catch ( error ) {
+			toast(
+				error instanceof Error ? error.message : __( 'That image could not be opened.' ),
+				'error'
+			);
+		}
 
 		return;
 	}
 
-	const post = postFrom( data );
+	const post = droppedPostFrom( type, data );
 
 	if ( post ) {
-		void openPostInDesktop( post );
+		await openPostInDesktop( post );
 	}
+}
+
+/**
+ * The handler for one payload type.
+ *
+ * One per type because the shell asks `accept()` about the data alone, and the same
+ * data means different things under different types.
+ *
+ * @param type Payload type.
+ */
+function handlerFor( type: string ): TilePayloadHandler {
+	return {
+		appliesTo: isLienzoIcon,
+		accept: ( data ) => acceptsDrop( type, data ),
+		acceptLabel: __( 'Open in AllTerrain Photo Editor' ),
+		onDrop: ( session ) => void openDropped( type, session.payload.data ?? {} ),
+	};
 }
 
 /**
@@ -108,16 +206,7 @@ export function registerIconDrop(): void {
 
 	shared.iconDropRegistered = true;
 
-	const handler = {
-		appliesTo: isLienzoIcon,
-		accept: ( data: Record< string, unknown > ) =>
-			!! ( attachmentFrom( data ) || postFrom( data ) ),
-		acceptLabel: __( 'Open in AllTerrain Photo Editor' ),
-		onDrop: ( session: { payload: { data?: Record< string, unknown > } } ) =>
-			openDropped( session.payload.data ?? {} ),
-	};
-
 	for ( const type of ACCEPTED ) {
-		files.registerTilePayloadHandler( type, handler );
+		files.registerTilePayloadHandler( type, handlerFor( type ) );
 	}
 }

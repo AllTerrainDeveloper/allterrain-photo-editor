@@ -58,4 +58,52 @@ class Tests_Lienzo_Desktop_Mode extends WP_UnitTestCase {
 
 		$this->assertSame( $args, lienzo_app_window_args( $args, 'wp-explorer' ) );
 	}
+
+	/**
+	 * The shell page enqueues the bundle itself, so the window does not ask to
+	 * preload it there.
+	 *
+	 * @covers ::lienzo_app_window_args
+	 */
+	public function test_does_not_preload_on_the_shell_page() {
+		$GLOBALS['lienzo_test_chromeless'] = false;
+
+		$this->assertArrayNotHasKey( 'preload_script', lienzo_app_window_args( array(), 'lienzo' ) );
+	}
+
+	/**
+	 * The payload that announces a live activation is built in a chromeless request,
+	 * and there the bundle asks to load at once: the icon drop and the file opener
+	 * have to work before the window is ever opened.
+	 *
+	 * @covers ::lienzo_app_window_args
+	 */
+	public function test_preloads_when_announced_from_a_chromeless_request() {
+		$GLOBALS['lienzo_test_chromeless'] = true;
+
+		$args = lienzo_app_window_args( array(), 'lienzo' );
+
+		$GLOBALS['lienzo_test_chromeless'] = false;
+
+		$this->assertTrue( $args['preload_script'] );
+	}
+}
+
+/*
+ * A shell that can say whether this request is a chromeless window, declared at file
+ * scope so it exists before the run. Off unless a test switches it on, which is the
+ * same answer the plugin gets with no shell function at all.
+ *
+ * phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+ * phpcs:disable Universal.Files.SeparateFunctionsFromOO.Mixed
+ */
+if ( ! function_exists( 'desktop_mode_is_chromeless_request' ) ) {
+	/**
+	 * Whether the current request renders inside a window iframe.
+	 *
+	 * @return bool The test's switch.
+	 */
+	function desktop_mode_is_chromeless_request() {
+		return ! empty( $GLOBALS['lienzo_test_chromeless'] );
+	}
 }

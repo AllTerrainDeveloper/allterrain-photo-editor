@@ -5,7 +5,7 @@
 import { __ } from '../../i18n';
 import type { DroppedImage } from '../../editor';
 import { desktop } from './desktop-api';
-import { readDesktopImage } from './image-payload';
+import { canResolveDesktopImage, readDesktopImage, resolveDesktopImage } from './image-payload';
 import { toast } from '../../platform';
 
 /** Separate registrations, including when the shell evaluates this bundle twice. */
@@ -39,8 +39,7 @@ export function registerDropTarget(
 		element,
 		accept: ( payload ) => {
 			const image = readDesktopImage( payload );
-			return !! image && ( image.kind === 'attachment' ||
-				!! desktop()?.files?.rest?.addUploadToMediaLibrary );
+			return !! image && canResolveDesktopImage( image );
 		},
 		acceptLabel: __( 'Add as a layer' ),
 		onDrop: async ( session, at ) => {
@@ -50,17 +49,7 @@ export function registerDropTarget(
 			}
 
 			try {
-				let attachmentId = image.id;
-				let title = image.title;
-				if ( image.kind === 'upload' ) {
-					const rest = desktop()?.files?.rest;
-					if ( ! rest?.addUploadToMediaLibrary ) {
-						return;
-					}
-					const attachment = await rest.addUploadToMediaLibrary( image.id );
-					attachmentId = attachment.attachmentId;
-					title = attachment.title || title;
-				}
+				const { attachmentId, title } = await resolveDesktopImage( image );
 				if ( ! disposed ) {
 					drop( { attachmentId, title, clientX: at?.clientX, clientY: at?.clientY } );
 				}
