@@ -7484,7 +7484,62 @@ fn mainFragment(
       }
     });
   }
-  const ACCEPTED = ["attachment", "shortcut"];
+  function readBridgeImage(record) {
+    if (!record || typeof record !== "object") {
+      return null;
+    }
+    const data = record;
+    const kind = data.kind;
+    if (kind !== "attachment" && kind !== "media" && kind !== "upload") {
+      return null;
+    }
+    const mime = data.mime;
+    if (typeof mime === "string" && mime && (!mime.startsWith("image/") || window.lienzoConfig && !window.lienzoConfig.supportedMimes.includes(mime))) {
+      return null;
+    }
+    if (kind === "upload" && (typeof mime !== "string" || !mime)) {
+      return null;
+    }
+    const id = Number(kind === "upload" ? data.fileId ?? data.ref : data.id ?? data.ref ?? data.mediaId);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      return null;
+    }
+    return {
+      kind: kind === "upload" ? "upload" : "attachment",
+      id,
+      ...typeof data.title === "string" ? { title: data.title } : {}
+    };
+  }
+  function readDesktopImage(payload) {
+    const data = payload.data ?? {};
+    if (data.bridgePayload) {
+      return readBridgeImage(data.bridgePayload);
+    }
+    if (payload.type === "desktop-file") {
+      const placement = data.placement;
+      const file = placement?.file;
+      return file ? readBridgeImage({ ...file, kind: file.type }) : null;
+    }
+    if (payload.type === "shortcut" || payload.type === "attachment") {
+      return readBridgeImage({ ...data, kind: data.kind ?? payload.type });
+    }
+    return null;
+  }
+  function canResolveDesktopImage(image) {
+    return "attachment" === image.kind || !!desktop()?.files?.rest?.addUploadToMediaLibrary;
+  }
+  async function resolveDesktopImage(image) {
+    if ("attachment" === image.kind) {
+      return { attachmentId: image.id, title: image.title };
+    }
+    const rest = desktop()?.files?.rest;
+    if (!rest?.addUploadToMediaLibrary) {
+      throw new Error(__("This desktop cannot add files to the Media Library."));
+    }
+    const attachment = await rest.addUploadToMediaLibrary(image.id);
+    return { attachmentId: attachment.attachmentId, title: attachment.title || image.title };
+  }
+  const ACCEPTED = ["attachment", "shortcut", "desktop-file"];
   function isLienzoIcon(ctx) {
     return WINDOW_ID === ctx.placement?.file?.ref;
   }
@@ -7501,16 +7556,53 @@ fn mainFragment(
     }
     return Number(data.ref ?? data.id ?? 0) || 0;
   }
-  function openDropped(data) {
-    const attachment = attachmentFrom(data);
-    if (attachment) {
-      openInDesktop(attachment);
+  function imageFrom(type, data) {
+    if ("desktop-file" === type) {
+      return readDesktopImage({ type, data });
+    }
+    const id = attachmentFrom(data);
+    return id ? { kind: "attachment", id } : null;
+  }
+  function droppedPostFrom(type, data) {
+    if ("desktop-file" !== type) {
+      return postFrom(data);
+    }
+    const file = data.placement?.file;
+    return file ? postFrom({ kind: file.type, ref: file.ref }) : 0;
+  }
+  function acceptsDrop(type, data) {
+    const image = imageFrom(type, data);
+    if (image) {
+      return canResolveDesktopImage(image);
+    }
+    return !!droppedPostFrom(type, data);
+  }
+  async function openDropped(type, data) {
+    const image = imageFrom(type, data);
+    if (image) {
+      try {
+        const { attachmentId } = await resolveDesktopImage(image);
+        openInDesktop(attachmentId);
+      } catch (error) {
+        toast(
+          error instanceof Error ? error.message : __("That image could not be opened."),
+          "error"
+        );
+      }
       return;
     }
-    const post = postFrom(data);
+    const post = droppedPostFrom(type, data);
     if (post) {
-      void openPostInDesktop(post);
+      await openPostInDesktop(post);
     }
+  }
+  function handlerFor(type) {
+    return {
+      appliesTo: isLienzoIcon,
+      accept: (data) => acceptsDrop(type, data),
+      acceptLabel: __("Open in AllTerrain Photo Editor"),
+      onDrop: (session) => void openDropped(type, session.payload.data ?? {})
+    };
   }
   function registerIconDrop() {
     const files = desktop()?.files;
@@ -7519,14 +7611,8 @@ fn mainFragment(
       return;
     }
     shared.iconDropRegistered = true;
-    const handler = {
-      appliesTo: isLienzoIcon,
-      accept: (data) => !!(attachmentFrom(data) || postFrom(data)),
-      acceptLabel: __("Open in AllTerrain Photo Editor"),
-      onDrop: (session) => openDropped(session.payload.data ?? {})
-    };
     for (const type of ACCEPTED) {
-      files.registerTilePayloadHandler(type, handler);
+      files.registerTilePayloadHandler(type, handlerFor(type));
     }
   }
   const MEDIA_FIELDS = "id,mime_type,title,source_url,media_details";
@@ -7804,47 +7890,6 @@ fn mainFragment(
     link.textContent = __("Upload a photo");
     ui.root.appendChild(link);
   }
-  function readBridgeImage(record) {
-    if (!record || typeof record !== "object") {
-      return null;
-    }
-    const data = record;
-    const kind = data.kind;
-    if (kind !== "attachment" && kind !== "media" && kind !== "upload") {
-      return null;
-    }
-    const mime = data.mime;
-    if (typeof mime === "string" && mime && (!mime.startsWith("image/") || window.lienzoConfig && !window.lienzoConfig.supportedMimes.includes(mime))) {
-      return null;
-    }
-    if (kind === "upload" && (typeof mime !== "string" || !mime)) {
-      return null;
-    }
-    const id = Number(kind === "upload" ? data.fileId ?? data.ref : data.id ?? data.ref ?? data.mediaId);
-    if (!Number.isSafeInteger(id) || id <= 0) {
-      return null;
-    }
-    return {
-      kind: kind === "upload" ? "upload" : "attachment",
-      id,
-      ...typeof data.title === "string" ? { title: data.title } : {}
-    };
-  }
-  function readDesktopImage(payload) {
-    const data = payload.data ?? {};
-    if (data.bridgePayload) {
-      return readBridgeImage(data.bridgePayload);
-    }
-    if (payload.type === "desktop-file") {
-      const placement = data.placement;
-      const file = placement?.file;
-      return file ? readBridgeImage({ ...file, kind: file.type }) : null;
-    }
-    if (payload.type === "shortcut" || payload.type === "attachment") {
-      return readBridgeImage({ ...data, kind: data.kind ?? payload.type });
-    }
-    return null;
-  }
   const targetPrefix = `lienzo-window-${Math.random().toString(36).slice(2)}`;
   let nextTarget = 0;
   function registerDropTarget(element, drop) {
@@ -7858,7 +7903,7 @@ fn mainFragment(
       element,
       accept: (payload) => {
         const image = readDesktopImage(payload);
-        return !!image && (image.kind === "attachment" || !!desktop()?.files?.rest?.addUploadToMediaLibrary);
+        return !!image && canResolveDesktopImage(image);
       },
       acceptLabel: __("Add as a layer"),
       onDrop: async (session, at) => {
@@ -7867,17 +7912,7 @@ fn mainFragment(
           return;
         }
         try {
-          let attachmentId = image.id;
-          let title = image.title;
-          if (image.kind === "upload") {
-            const rest = desktop()?.files?.rest;
-            if (!rest?.addUploadToMediaLibrary) {
-              return;
-            }
-            const attachment = await rest.addUploadToMediaLibrary(image.id);
-            attachmentId = attachment.attachmentId;
-            title = attachment.title || title;
-          }
+          const { attachmentId, title } = await resolveDesktopImage(image);
           if (!disposed) {
             drop({ attachmentId, title, clientX: at?.clientX, clientY: at?.clientY });
           }

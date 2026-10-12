@@ -139,6 +139,10 @@ Rendering uses PixiJS (MIT), which is bundled by the OpenStation plugin and serv
 
 == Changelog ==
 
+= 1.1.2 =
+* A photo saved to the OpenStation desktop can be dropped onto the AllTerrain Photo Editor icon to open it, as it already could onto the editor window. It is added to the Media Library on drop. Media Library items and posts placed on the desktop open from the icon too.
+* The editor works straight after the plugin is activated on an open OpenStation desktop. The window used to stay empty, and the icon drop did nothing, until the page was reloaded.
+
 = 1.1.1 =
 * Improved compatibility with OpenStation image drags from the wallpaper and file windows, including attachment payloads without the older bridge wrapper.
 * Stored desktop images can be dropped into the editor as layers. Their Media Library copy is created or reused only when the drop lands.

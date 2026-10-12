@@ -1,5 +1,7 @@
 /** Image identities carried by the desktop's pointer and cross-frame drags. */
 
+import { __ } from '../../i18n';
+import { desktop } from './desktop-api';
 import type { DragPayloadLike } from './desktop-api';
 
 export interface DesktopImage {
@@ -60,4 +62,48 @@ export function readDesktopImage( payload: DragPayloadLike ): DesktopImage | nul
 		return readBridgeImage( { ...data, kind: data.kind ?? payload.type } );
 	}
 	return null;
+}
+
+/**
+ * Whether this shell can turn an image into something the editor opens.
+ *
+ * An attachment always can. A file stored on the desktop has to become one first, and
+ * only a shell that offers the conversion can do that -- so offering the drop without
+ * it would highlight a target that then does nothing.
+ *
+ * @param image The image a drag carries.
+ */
+export function canResolveDesktopImage( image: DesktopImage ): boolean {
+	return 'attachment' === image.kind ||
+		!! desktop()?.files?.rest?.addUploadToMediaLibrary;
+}
+
+/**
+ * The attachment an image opens as, adding a desktop file to the Media Library first.
+ *
+ * The editor reads and saves attachments, so a photo that lives only on the desktop is
+ * filed into the library at drop time -- the same thing the shell does when one is
+ * dropped onto a post.
+ *
+ * @param image The image a drag carries.
+ * @return The attachment id and its title.
+ */
+export async function resolveDesktopImage(
+	image: DesktopImage
+): Promise< { attachmentId: number; title?: string } > {
+	if ( 'attachment' === image.kind ) {
+		return { attachmentId: image.id, title: image.title };
+	}
+
+	const rest = desktop()?.files?.rest;
+
+	if ( ! rest?.addUploadToMediaLibrary ) {
+		throw new Error( __( 'This desktop cannot add files to the Media Library.' ) );
+	}
+
+	// Called on the client rather than pulled off it, in case the shell's method
+	// reads its own `this`.
+	const attachment = await rest.addUploadToMediaLibrary( image.id );
+
+	return { attachmentId: attachment.attachmentId, title: attachment.title || image.title };
 }

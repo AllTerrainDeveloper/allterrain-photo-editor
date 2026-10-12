@@ -135,6 +135,16 @@ function lienzo_app_window_args( $args, $id ) {
 	$args['scripts'] = array_merge( array( 'lienzo' ), (array) ( $args['scripts'] ?? array() ) );
 	$args['styles']  = array_merge( (array) ( $args['styles'] ?? array() ), array( 'lienzo' ) );
 
+	// Loading on first open is right for the window, but the bundle has jobs that
+	// start before any window does -- the icon drop, the file opener, the media
+	// modal's open requests. The payload announcing a live activation is built in a
+	// chromeless request, so only there does the bundle ask to load at once. The
+	// shell page enqueues it anyway, and a window the shell already knows ignores
+	// the flag.
+	if ( lienzo_is_desktop_mode_chromeless() ) {
+		$args['preload_script'] = true;
+	}
+
 	return $args;
 }
 
@@ -158,17 +168,20 @@ function lienzo_register_desktop_window() {
 		'register_window',
 		'lienzo',
 		array(
-			'title'        => __( 'AllTerrain Photo Editor', 'allterrain-photo-editor' ),
-			'icon'         => 'dashicons-format-image',
-			'template'     => 'lienzo_render_desktop_template',
-			'script'       => 'lienzo',
-			'style'        => 'lienzo',
-			'width'        => 1100,
-			'height'       => 720,
-			'min_width'    => 640,
-			'min_height'   => 480,
-			'placement'    => 'dock',
-			'capabilities' => array( 'upload_files' ),
+			'title'          => __( 'AllTerrain Photo Editor', 'allterrain-photo-editor' ),
+			'icon'           => 'dashicons-format-image',
+			'template'       => 'lienzo_render_desktop_template',
+			'script'         => 'lienzo',
+			'style'          => 'lienzo',
+			'width'          => 1100,
+			'height'         => 720,
+			'min_width'      => 640,
+			'min_height'     => 480,
+			'placement'      => 'dock',
+			'capabilities'   => array( 'upload_files' ),
+			// See `lienzo_app_window_args()`: after a live activation the bundle
+			// has jobs to do before the window is ever opened.
+			'preload_script' => lienzo_is_desktop_mode_chromeless(),
 		)
 	);
 
