@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       AllTerrain Photo Editor for OpenStation
+ * Plugin Name:       AllTerrain Photo Editor – Crop, Resize, Paint & Photo Filters
  * Plugin URI:        https://github.com/AllTerrainDeveloper/allterrain-photo-editor
  * Description:       A modern, non-destructive image editor for the WordPress media library. Exposure, colour and tone adjustments rendered on the GPU, in the browser.
  * Version:           1.1.3
