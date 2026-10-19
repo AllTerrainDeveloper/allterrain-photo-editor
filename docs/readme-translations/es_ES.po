@@ -1,0 +1,315 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Plugins - AllTerrain Photo Editor - Stable Readme (latest release)\n"
+"PO-Revision-Date: 2026-10-19 12:00+0000\n"
+"Last-Translator: AllTerrain Photo Editor\n"
+"Language-Team: es_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es_ES\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+
+#. Plugin name.
+msgid "AllTerrain Photo Editor – Crop, Resize, Paint &amp; Photo Filters"
+msgstr "AllTerrain Photo Editor – Recortar, redimensionar, pintar y filtros de fotos"
+
+#. Short description.
+msgid "A small painting studio inside WordPress. Brushes, layers and filters, straight in the Media Library."
+msgstr "Un pequeño estudio de pintura y editor de fotos dentro de WordPress: pinceles, capas y filtros, directamente en la Biblioteca de medios."
+
+#. Found in description paragraph.
+msgid "AllTerrain Photo Editor is an image editor for the WordPress Media Library. Crop, resize and rotate images, grade them with photo filters, curves and levels, paint on layers, add text to images, and save the result as a new JPEG, PNG or WebP. The original image is never touched."
+msgstr "AllTerrain Photo Editor es un editor de imágenes para la Biblioteca de medios de WordPress. Recorta, redimensiona y gira imágenes, ajusta su color con filtros de fotos, curvas y niveles, pinta en capas, añade texto en la imagen y guarda el resultado como un nuevo JPEG, PNG o WebP. La imagen original nunca se modifica."
+
+#. Found in description paragraph.
+msgid "WordPress has shipped the same image editor since 2008: rotate, flip, crop, scale. AllTerrain Photo Editor adds everything that was missing."
+msgstr "WordPress lleva desde 2008 con el mismo editor de imágenes: girar, voltear, recortar, escalar. AllTerrain Photo Editor añade todo lo que le faltaba para editar imágenes."
+
+#. Found in description paragraph.
+msgid "It is a real editor. You can adjust exposure and colour while watching a live histogram, paint with brushes that have shape and softness, select an area and paint only inside it, stack layers, drag a photo in from the Media Library, and type text directly onto the canvas."
+msgstr "Es un editor de verdad. Puedes ajustar la exposición y el color mientras observas un histograma en directo, pintar con pinceles que tienen forma y suavidad, seleccionar una zona y pintar solo dentro de ella, apilar capas, arrastrar una foto desde la Biblioteca de medios y escribir texto directamente sobre el lienzo."
+
+#. Found in description header.
+msgid "Adjust"
+msgstr "Ajustar"
+
+#. Found in description list item.
+msgid "Exposure, contrast, temperature, tint, saturation, vibrance and hue"
+msgstr "Exposición, contraste, temperatura, tinte, saturación, intensidad y tono"
+
+#. Found in description list item.
+msgid "Curves, on RGB and on each channel separately"
+msgstr "Curvas, en RGB y en cada canal por separado"
+
+#. Found in description list item.
+msgid "Levels, with black point, white point and gamma"
+msgstr "Niveles, con punto negro, punto blanco y gamma"
+
+#. Found in description list item.
+msgid "Sharpen, blur, vignette and grain"
+msgstr "Enfoque, desenfoque, viñeta y grano"
+
+#. Found in description list item.
+msgid "A live histogram that follows the slider as you drag it"
+msgstr "Un histograma en directo que sigue al deslizador mientras lo arrastras"
+
+#. Found in description list item.
+msgid "Presets, so a look you like can be reused on the next photo"
+msgstr "Preajustes, para reutilizar en la siguiente foto un estilo que te guste"
+
+#. Found in description header.
+msgid "Paint"
+msgstr "Pintar"
+
+#. Found in description paragraph.
+msgid "Eighteen tools on a two column rail, grouped the way you would expect:"
+msgstr "Dieciocho herramientas en una barra de dos columnas, agrupadas como cabría esperar:"
+
+#. Found in description list item.
+msgid "Move and transform, with handles that scale, rotate and snap"
+msgstr "Mover y transformar, con tiradores que escalan, giran y se ajustan"
+
+#. Found in description list item.
+msgid "Select as a rectangle, an ellipse, a freeform lasso or a polygon"
+msgstr "Selección en forma de rectángulo, elipse, lazo a mano alzada o polígono"
+
+#. Found in description list item.
+msgid "A magnetic lasso that snaps to the edge you are tracing, so trace roughly round a subject and the outline finds its boundary for you"
+msgstr "Un lazo magnético que se ajusta al borde que estás trazando: traza a grandes rasgos alrededor de un motivo y el contorno encuentra su límite por ti"
+
+#. Found in description list item.
+msgid "Build a selection up: add to it, subtract from it, or keep only the overlap, from the options bar or by holding Shift, Alt or both"
+msgstr "Construye una selección por partes: añádele, réstale o quédate solo con la intersección, desde la barra de opciones o manteniendo pulsado Mayús, Alt o ambas"
+
+#. Found in description list item.
+msgid "Step a selection back when an addition went the wrong way, with Cmd/Ctrl+Shift+D or the Step back button — which also brings back a selection you dropped"
+msgstr "Retrocede un paso en la selección cuando una adición ha salido mal, con Cmd/Ctrl+Mayús+D o con el botón «Step back», que además recupera una selección que hayas descartado"
+
+#. Found in description list item.
+msgid "Magic wand, which selects the region around the colour you click"
+msgstr "Varita mágica, que selecciona la zona alrededor del color en el que haces clic"
+
+#. Found in description list item.
+msgid "Crop, with aspect presets"
+msgstr "Recortar la imagen, con proporciones predefinidas"
+
+#. Found in description list item.
+msgid "Eyedropper, brush, eraser, paint bucket and gradient"
+msgstr "Cuentagotas, pincel, borrador, bote de pintura y degradado"
+
+#. Found in description list item.
+msgid "Retouch: blur, sharpen, smudge and heal"
+msgstr "Retoque: desenfocar, enfocar, difuminar y corregir"
+
+#. Found in description list item.
+msgid "Clone stamp, with an Alt click to set the sample point"
+msgstr "Tampón de clonar, con Alt + clic para fijar el punto de muestra"
+
+#. Found in description list item.
+msgid "Dodge, burn, desaturate and saturate"
+msgstr "Sobreexponer, subexponer, desaturar y saturar"
+
+#. Found in description list item.
+msgid "History brush, which paints the original image back"
+msgstr "Pincel de historia, que vuelve a pintar la imagen original"
+
+#. Found in description list item.
+msgid "Shapes, paths and text"
+msgstr "Formas, trazados y texto"
+
+#. Found in description list item.
+msgid "Hand and zoom, plus a quick mask and a full screen mode"
+msgstr "Mano y zoom, además de una máscara rápida y un modo de pantalla completa"
+
+#. Found in description paragraph.
+msgid "Brushes have a size, a shape and a hardness, and the cursor is a ring the real size of the brush against the image, so you are never guessing at how much a stroke will cover."
+msgstr "Los pinceles tienen tamaño, forma y dureza, y el cursor es un anillo del tamaño real del pincel sobre la imagen, así que nunca tienes que adivinar cuánto cubrirá un trazo."
+
+#. Found in description header.
+msgid "Layers"
+msgstr "Capas"
+
+#. Found in description paragraph.
+msgid "Text, pasted pixels and dropped photos each arrive as their own layer, so you can move one without disturbing the others, reorder them, hide them or throw one away. Undo reaches painted pixels too, not only settings."
+msgstr "El texto, los píxeles pegados y las fotos soltadas llegan cada uno como su propia capa, así que puedes mover una sin alterar las demás, reordenarlas, ocultarlas o descartar una. Deshacer también alcanza a los píxeles pintados, no solo a los ajustes."
+
+#. Found in description header.
+msgid "Drag a photo in"
+msgstr "Arrastra una foto"
+
+#. Found in description paragraph.
+msgid "Drag an image from the Media Library, from the desktop, or from your computer straight onto the canvas. It lands as a new layer, where you dropped it, scaled to fit."
+msgstr "Arrastra una imagen desde la Biblioteca de medios, desde el escritorio o desde tu ordenador directamente al lienzo. Se coloca como una capa nueva, donde la soltaste, escalada para que encaje."
+
+#. Found in description header.
+msgid "Edit a featured image or a WooCommerce product image"
+msgstr "Edita una imagen destacada o una imagen de producto de WooCommerce"
+
+#. Found in description paragraph.
+msgid "Drag a WooCommerce product onto the AllTerrain Photo Editor icon and its photo opens straight away, skipping the picker. Any post with a picture works the same way, and so does dropping a photo itself."
+msgstr "Arrastra un producto de WooCommerce sobre el icono de AllTerrain Photo Editor y su foto se abre al instante, sin pasar por el selector. Cualquier entrada con una imagen funciona igual, y también soltar directamente una foto."
+
+#. Found in description paragraph.
+msgid "When you save, AllTerrain Photo Editor asks whether the product should start using the edit. Either answer leaves your original where it is: choosing to update writes a new copy and points the product at it, so going back is a matter of pointing it at the old one again."
+msgstr "Al guardar, AllTerrain Photo Editor te pregunta si el producto debe empezar a usar la edición. Respondas lo que respondas, tu original se queda donde está: si eliges actualizar, se escribe una copia nueva y el producto pasa a apuntar a ella, así que volver atrás es cuestión de apuntarlo de nuevo a la anterior."
+
+#. Found in description header.
+msgid "Save as WebP, PNG or JPEG"
+msgstr "Guarda como WebP, PNG o JPEG"
+
+#. Found in description paragraph.
+msgid "Choose the format of the copy you save: JPEG for the smallest file, PNG to keep transparency, or WebP for small files that can also keep it. JPEG and WebP have a quality slider."
+msgstr "Elige el formato de la copia que guardas: JPEG para el archivo más pequeño, PNG para conservar la transparencia o WebP para archivos pequeños que también pueden conservarla. JPEG y WebP tienen un deslizador de calidad."
+
+#. Found in description header.
+msgid "Your originals are never touched"
+msgstr "Tus originales nunca se modifican"
+
+#. Found in description paragraph.
+msgid "Saving always writes a new attachment and records the edit as a recipe: the list of adjustments, not the pixels. Re-opening a photo restores every slider exactly where you left it and renders again from the original. Editing the same image ten times costs nothing in quality, because every render is a first generation one."
+msgstr "Al guardar siempre se crea un nuevo adjunto y la edición se registra como una receta: la lista de ajustes, no los píxeles. Al volver a abrir una foto, cada deslizador vuelve exactamente a donde lo dejaste y la imagen se renderiza de nuevo a partir del original. Editar la misma imagen diez veces no cuesta nada de calidad, porque cada renderizado es de primera generación."
+
+#. Found in description header.
+msgid "Fast, because of how it renders"
+msgstr "Rápido, por cómo renderiza"
+
+#. Found in description paragraph.
+msgid "Adjustments are composed into a single GPU pass rather than chained one after another. That is not only quicker. It also means the image is quantised once instead of once per adjustment, which is the difference between a clean gradient and visible banding in a sky."
+msgstr "Los ajustes se combinan en una sola pasada de GPU en lugar de encadenarse uno tras otro. No solo es más rápido. También significa que la imagen se cuantiza una sola vez en lugar de una vez por ajuste, que es la diferencia entre un degradado limpio y bandas visibles en un cielo."
+
+#. Found in requires_openstation paragraph.
+msgid "AllTerrain Photo Editor runs inside the OpenStation plugin (previously called Desktop Mode), which turns wp-admin into a desktop, and needs it installed. That is not decoration: the rendering engine is OpenStation's. AllTerrain Photo Editor ships none of its own and borrows the desktop's, which is why this plugin is a few tens of kilobytes rather than the best part of a megabyte, and why your browser only ever downloads one copy."
+msgstr "AllTerrain Photo Editor funciona dentro del plugin OpenStation (antes llamado Desktop Mode), que convierte wp-admin en un escritorio, y necesita que esté instalado. No es un adorno: el motor de renderizado es el de OpenStation. AllTerrain Photo Editor no incluye uno propio y usa el del escritorio, por eso este plugin ocupa unas pocas decenas de kilobytes en lugar de casi un megabyte, y por eso tu navegador solo descarga una copia."
+
+#. Found in requires_openstation paragraph.
+msgid "Install and activate OpenStation first. Without it, AllTerrain Photo Editor tells you what it needs and otherwise stays out of the way."
+msgstr "Instala y activa primero OpenStation. Sin él, AllTerrain Photo Editor te indica lo que necesita y, por lo demás, no interfiere."
+
+#. Found in requires_openstation header.
+msgid "Where it opens"
+msgstr "Dónde se abre"
+
+#. Found in requires_openstation paragraph.
+msgid "With the desktop switched on, AllTerrain Photo Editor is a real window: chrome you can move and resize, an icon on the wallpaper, and drag and drop between windows."
+msgstr "Con el escritorio activado, AllTerrain Photo Editor es una ventana de verdad: un marco que puedes mover y redimensionar, un icono en el fondo de escritorio y arrastrar y soltar entre ventanas."
+
+#. Found in requires_openstation paragraph.
+msgid "The desktop is a per-user preference, and with it switched off AllTerrain Photo Editor still opens — under Media → Edit Photos, and over the top of whatever you were doing when you choose \"Edit with AllTerrain Photo Editor\" in the Media Library, in the media picker or on an image block. Every tool is the same one. What you do not get is the window, the wallpaper icon and dragging photos between windows."
+msgstr "El escritorio es una preferencia de cada usuario y, con él desactivado, AllTerrain Photo Editor se sigue abriendo: en Medios → «Edit Photos», y por encima de lo que estuvieras haciendo cuando eliges «Edit with AllTerrain Photo Editor» en la Biblioteca de medios, en el selector de medios o en un bloque de imagen. Todas las herramientas son las mismas. Lo que no tienes es la ventana, el icono en el fondo de escritorio ni arrastrar fotos entre ventanas."
+
+#. Found in installation list item.
+msgid "Install and activate the OpenStation plugin."
+msgstr "Instala y activa el plugin OpenStation."
+
+#. Found in installation list item.
+msgid "Upload the <code>allterrain-photo-editor</code> folder to <code>/wp-content/plugins/</code>, or install it from the Plugins screen."
+msgstr "Sube la carpeta <code>allterrain-photo-editor</code> a <code>/wp-content/plugins/</code> o instálalo desde la pantalla Plugins."
+
+#. Found in installation list item.
+msgid "Activate AllTerrain Photo Editor through the Plugins menu."
+msgstr "Activa AllTerrain Photo Editor desde el menú Plugins."
+
+#. Found in installation list item.
+msgid "Open AllTerrain Photo Editor from the dock or the desktop, or choose \"Edit with AllTerrain Photo Editor\" on any image in the Media Library. With the desktop switched off, use Media → Edit Photos."
+msgstr "Abre AllTerrain Photo Editor desde el dock o el escritorio, o elige «Edit with AllTerrain Photo Editor» en cualquier imagen de la Biblioteca de medios. Con el escritorio desactivado, usa Medios → «Edit Photos»."
+
+#. Found in faq header.
+msgid "Does this change my original images?"
+msgstr "¿Esto modifica mis imágenes originales?"
+
+#. Found in faq paragraph.
+msgid "No. Every save creates a new attachment and links it back to the original. Your original file is never rewritten."
+msgstr "No. Cada vez que guardas se crea un nuevo adjunto enlazado con el original. Tu archivo original nunca se sobrescribe."
+
+#. Found in faq header.
+msgid "Do I need ImageMagick or GD?"
+msgstr "¿Necesito ImageMagick o GD?"
+
+#. Found in faq paragraph.
+msgid "Not for the editing. All of it happens in your browser using WebGL. WordPress still uses its normal image library to generate the thumbnail sizes of whatever you save."
+msgstr "No para editar fotos. Todo ocurre en tu navegador usando WebGL. WordPress sigue usando su biblioteca de imágenes habitual para generar los tamaños de miniatura de lo que guardes."
+
+#. Found in faq header.
+msgid "Which browsers are supported?"
+msgstr "¿Qué navegadores son compatibles?"
+
+#. Found in faq paragraph.
+msgid "Any browser with WebGL 2, which is every current version of Chrome, Firefox, Safari and Edge."
+msgstr "Cualquier navegador con WebGL 2, es decir, todas las versiones actuales de Chrome, Firefox, Safari y Edge."
+
+#. Found in faq header.
+msgid "My images are served from a CDN. Will it work?"
+msgstr "Mis imágenes se sirven desde una CDN. ¿Funcionará?"
+
+#. Found in faq paragraph.
+msgid "Yes. When a CDN does not send the CORS headers a GPU canvas requires, AllTerrain Photo Editor streams the original through your own site instead."
+msgstr "Sí. Cuando una CDN no envía las cabeceras CORS que requiere un lienzo de GPU, AllTerrain Photo Editor transmite el original a través de tu propio sitio."
+
+#. Found in faq header.
+msgid "Why is GIF not supported?"
+msgstr "¿Por qué no es compatible con GIF?"
+
+#. Found in faq paragraph.
+msgid "Rendering an animated GIF through a canvas silently flattens it to a single frame. Rather than quietly destroy the animation, AllTerrain Photo Editor does not offer to edit them. The photo picker leaves them out for the same reason, and tells you how many it left out, so a library of GIFs does not read as an empty one."
+msgstr "Renderizar un GIF animado a través de un lienzo lo reduce sin avisar a un solo fotograma. En lugar de destruir la animación sin decir nada, AllTerrain Photo Editor no ofrece editarlos. El selector de fotos los deja fuera por el mismo motivo, y te dice cuántos ha dejado fuera, para que una biblioteca llena de GIF no parezca vacía."
+
+#. Found in faq header.
+msgid "Are brush strokes stored in the recipe?"
+msgstr "¿Se guardan las pinceladas en la receta?"
+
+#. Found in faq paragraph.
+msgid "No, and the difference decides what re-opening does. Adjustments, crops and transforms are instructions: they are stored in the recipe, replayed over your original, and come back as sliders you can still move. Painted, pasted and dropped pixels are not instructions, so they are baked into the file you save."
+msgstr "No, y esa diferencia determina lo que ocurre al volver a abrir. Los ajustes, recortes y transformaciones son instrucciones: se guardan en la receta, se vuelven a aplicar sobre tu original y regresan como deslizadores que todavía puedes mover. Los píxeles pintados, pegados y soltados no son instrucciones, así que quedan integrados en el archivo que guardas."
+
+#. Found in faq paragraph.
+msgid "That makes a painted save its own original. Re-open it and you see exactly the pixels you saved, with the sliders back at zero, ready to be edited again from there. The editor says so when you save, rather than letting you find out later."
+msgstr "Eso hace que un guardado con pintura sea su propio original. Vuelve a abrirlo y verás exactamente los píxeles que guardaste, con los deslizadores de nuevo a cero, listos para editar otra vez desde ahí. El editor te lo avisa al guardar, en lugar de dejar que lo descubras más tarde."
+
+#. Found in faq header.
+msgid "Can I use it with the desktop switched off?"
+msgstr "¿Puedo usarlo con el escritorio desactivado?"
+
+#. Found in faq paragraph.
+msgid "Yes. It opens under Media → Edit Photos, and as an overlay when you choose \"Edit with AllTerrain Photo Editor\" from the Media Library, the media picker or an image block. Every tool is the same one; what you do not get is the movable window, the wallpaper icon and dragging photos between windows. OpenStation still has to be installed, because the rendering engine comes from it."
+msgstr "Sí. Se abre en Medios → «Edit Photos», y como una superposición cuando eliges «Edit with AllTerrain Photo Editor» desde la Biblioteca de medios, el selector de medios o un bloque de imagen. Todas las herramientas son las mismas; lo que no tienes es la ventana móvil, el icono en el fondo de escritorio ni arrastrar fotos entre ventanas. OpenStation tiene que seguir instalado, porque el motor de renderizado viene de él."
+
+#. Found in faq header.
+msgid "Does it edit in real colour?"
+msgstr "¿Edita en color real?"
+
+#. Found in faq paragraph.
+msgid "There is a Light switch at the top of the Adjustments panel. Left on sRGB it behaves like WordPress and like most browser editors: the maths is done on the stored values. Switched to Linear, exposure is applied to <em>light</em> instead, so a stop up or down lands where a camera would have put it rather than where the file's encoding does. Existing edits are unaffected; the setting is saved with each one."
+msgstr "Hay un interruptor «Light» en la parte superior del panel de ajustes. Si lo dejas en sRGB, se comporta como WordPress y como la mayoría de los editores del navegador: los cálculos se hacen sobre los valores almacenados. Si lo cambias a «Linear», la exposición se aplica a la <em>luz</em>, de modo que subir o bajar un paso lo deja donde lo habría puesto una cámara y no donde lo pone la codificación del archivo. Las ediciones existentes no se ven afectadas; el ajuste se guarda con cada una."
+
+#. Found in faq header.
+msgid "Where do I get help?"
+msgstr "¿Dónde consigo ayuda?"
+
+#. Found in faq paragraph.
+msgid "Ask on the <a href=\"https://wordpress.org/support/plugin/allterrain-photo-editor/\">support forum</a>, where an answer also helps the next person with the same question. If you have found a bug and can say how to reproduce it, you can open an issue on <a href=\"https://github.com/AllTerrainDeveloper/allterrain-photo-editor/issues\">GitHub</a> instead."
+msgstr "Pregunta en el <a href=\"https://wordpress.org/support/plugin/allterrain-photo-editor/\">foro de soporte</a>, donde la respuesta también ayuda a la siguiente persona con la misma duda. Si has encontrado un error y sabes cómo reproducirlo, puedes abrir un issue en <a href=\"https://github.com/AllTerrainDeveloper/allterrain-photo-editor/issues\">GitHub</a>."
+
+#. Found in Screenshot description.
+msgid "The editor as a desktop window: the tool rail on the left, the layer stack, a live histogram and every adjustment on the right, and the magnetic lasso following the edge of a plate."
+msgstr "El editor como ventana del escritorio: la barra de herramientas a la izquierda, la pila de capas, un histograma en directo y todos los ajustes a la derecha, y el lazo magnético siguiendo el borde de un plato."
+
+#. Found in Screenshot description.
+msgid "Text typed straight onto the canvas, as a layer of its own, with a transform box to move, scale and rotate it."
+msgstr "Texto escrito directamente sobre el lienzo, como una capa propia, con un cuadro de transformación para moverlo, escalarlo y girarlo."
+
+#. Found in Screenshot description.
+msgid "Curves, on RGB or on one channel at a time, against the photo being graded — the editor in its own window on the OpenStation desktop."
+msgstr "Curvas, en RGB o en un canal cada vez, sobre la foto que se está retocando: el editor en su propia ventana en el escritorio de OpenStation."
+
+#. Found in Screenshot description.
+msgid "A soft round brush, its size, hardness and opacity on the options bar, over levels, sharpening, vignette and grain."
+msgstr "Un pincel redondo suave, con su tamaño, dureza y opacidad en la barra de opciones, sobre niveles, enfoque, viñeta y grano."
+
+#. Found in third-party_libraries paragraph.
+msgid "This plugin bundles no third-party libraries and makes no external or CDN requests."
+msgstr "Este plugin no incluye bibliotecas de terceros y no hace peticiones externas ni a una CDN."
+
+#. Found in third-party_libraries paragraph.
+msgid "Rendering uses PixiJS (MIT), which is bundled by the OpenStation plugin and served from your own server. AllTerrain Photo Editor asks OpenStation for it rather than shipping a second copy: that keeps this plugin small, and two instances of the same rendering library on one page share GPU resources through globals, where tearing one down can break the other."
+msgstr "El renderizado usa PixiJS (MIT), que incluye el plugin OpenStation y se sirve desde tu propio servidor. AllTerrain Photo Editor se lo pide a OpenStation en lugar de incluir una segunda copia: así este plugin se mantiene ligero, y dos instancias de la misma biblioteca de renderizado en una página comparten recursos de GPU a través de variables globales, por lo que eliminar una puede romper la otra."

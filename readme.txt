@@ -1,6 +1,6 @@
-=== AllTerrain Photo Editor for OpenStation ===
+=== AllTerrain Photo Editor – Crop, Resize, Paint & Photo Filters ===
 Contributors: allterraindeveloper
-Tags: image editor, media, photo, layers, filters
+Tags: image editor, photo editor, crop, filters, layers
 Requires at least: 6.0
 Requires Plugins: desktop-mode
 Tested up to: 7.1
@@ -12,6 +12,8 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 A small painting studio inside WordPress. Brushes, layers and filters, straight in the Media Library.
 
 == Description ==
+
+AllTerrain Photo Editor is an image editor for the WordPress Media Library. Crop, resize and rotate images, grade them with photo filters, curves and levels, paint on layers, add text to images, and save the result as a new JPEG, PNG or WebP. The original image is never touched.
 
 WordPress has shipped the same image editor since 2008: rotate, flip, crop, scale. AllTerrain Photo Editor adds everything that was missing.
 
@@ -55,11 +57,15 @@ Text, pasted pixels and dropped photos each arrive as their own layer, so you ca
 
 Drag an image from the Media Library, from the desktop, or from your computer straight onto the canvas. It lands as a new layer, where you dropped it, scaled to fit.
 
-= Open a product photo without hunting for it =
+= Edit a featured image or a WooCommerce product image =
 
 Drag a WooCommerce product onto the AllTerrain Photo Editor icon and its photo opens straight away, skipping the picker. Any post with a picture works the same way, and so does dropping a photo itself.
 
 When you save, AllTerrain Photo Editor asks whether the product should start using the edit. Either answer leaves your original where it is: choosing to update writes a new copy and points the product at it, so going back is a matter of pointing it at the old one again.
+
+= Save as WebP, PNG or JPEG =
+
+Choose the format of the copy you save: JPEG for the smallest file, PNG to keep transparency, or WebP for small files that can also keep it. JPEG and WebP have a quality slider.
 
 = Your originals are never touched =
 
@@ -123,6 +129,10 @@ Yes. It opens under Media → Edit Photos, and as an overlay when you choose "Ed
 = Does it edit in real colour? =
 
 There is a Light switch at the top of the Adjustments panel. Left on sRGB it behaves like WordPress and like most browser editors: the maths is done on the stored values. Switched to Linear, exposure is applied to *light* instead, so a stop up or down lands where a camera would have put it rather than where the file's encoding does. Existing edits are unaffected; the setting is saved with each one.
+
+= Where do I get help? =
+
+Ask on the [support forum](https://wordpress.org/support/plugin/allterrain-photo-editor/), where an answer also helps the next person with the same question. If you have found a bug and can say how to reproduce it, you can open an issue on [GitHub](https://github.com/AllTerrainDeveloper/allterrain-photo-editor/issues) instead.
 
 == Screenshots ==
 
