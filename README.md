@@ -935,6 +935,7 @@ browser implementation gives you a slider that validates and then does nothing.
 | `lienzo_post_image_id` | Which image a post is "about" |
 | `lienzo_post_image_candidates` | The list checked before that decides |
 | `lienzo_post_image_updated` | Fires after a post is pointed at an edit |
+| `lienzo_support_url` | Where the Plugins screen's Support link points; empty removes it |
 
 ## Opening a post's photo
 

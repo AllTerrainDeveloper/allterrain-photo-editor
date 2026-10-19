@@ -80,6 +80,7 @@ define( 'LIENZO_LEGACY_SOURCE_META', '_daguerre_source' );
 
 require_once LIENZO_DIR . 'includes/shell-api.php';
 require_once LIENZO_DIR . 'includes/requirements.php';
+require_once LIENZO_DIR . 'includes/plugin-links.php';
 
 add_action( 'plugins_loaded', 'lienzo_boot', 5 );
 

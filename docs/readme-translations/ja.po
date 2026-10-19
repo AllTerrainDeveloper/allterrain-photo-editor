@@ -1,0 +1,315 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Plugins - AllTerrain Photo Editor - Stable Readme (latest release)\n"
+"PO-Revision-Date: 2026-10-19 12:00+0000\n"
+"Last-Translator: AllTerrain Photo Editor\n"
+"Language-Team: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ja\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#. Plugin name.
+msgid "AllTerrain Photo Editor – Crop, Resize, Paint &amp; Photo Filters"
+msgstr "AllTerrain Photo Editor – 画像のトリミング、リサイズ、ペイント &amp; 写真フィルター"
+
+#. Short description.
+msgid "A small painting studio inside WordPress. Brushes, layers and filters, straight in the Media Library."
+msgstr "WordPress の中の小さなペイントスタジオ。ブラシ、レイヤー、フィルターを使った画像編集を、メディアライブラリで直接行えます。"
+
+#. Found in description paragraph.
+msgid "AllTerrain Photo Editor is an image editor for the WordPress Media Library. Crop, resize and rotate images, grade them with photo filters, curves and levels, paint on layers, add text to images, and save the result as a new JPEG, PNG or WebP. The original image is never touched."
+msgstr "AllTerrain Photo Editor は WordPress のメディアライブラリで使える画像エディターです。画像のトリミング、リサイズ、回転、写真フィルターやトーンカーブ、レベル補正による色調補正、レイヤーへのペイント、画像に文字を入れる機能を備え、編集結果を新しい JPEG、PNG、または WebP として保存できます。元の画像には一切手を加えません。"
+
+#. Found in description paragraph.
+msgid "WordPress has shipped the same image editor since 2008: rotate, flip, crop, scale. AllTerrain Photo Editor adds everything that was missing."
+msgstr "WordPress には 2008 年から同じ画像エディターが搭載されています。できるのは回転、反転、トリミング、拡大縮小だけです。AllTerrain Photo Editor は、足りなかった機能をすべて追加します。"
+
+#. Found in description paragraph.
+msgid "It is a real editor. You can adjust exposure and colour while watching a live histogram, paint with brushes that have shape and softness, select an area and paint only inside it, stack layers, drag a photo in from the Media Library, and type text directly onto the canvas."
+msgstr "本格的な写真編集ができるエディターです。ライブヒストグラムを見ながら露出や色を調整したり、形状とぼかしを設定できるブラシでペイントしたり、範囲を選択してその内側だけをペイントしたり、レイヤーを重ねたり、メディアライブラリから写真をドラッグして取り込んだり、キャンバスに直接テキストを入力したりできます。"
+
+#. Found in description header.
+msgid "Adjust"
+msgstr "調整"
+
+#. Found in description list item.
+msgid "Exposure, contrast, temperature, tint, saturation, vibrance and hue"
+msgstr "露出、コントラスト、色温度、色合い、彩度、自然な彩度、色相"
+
+#. Found in description list item.
+msgid "Curves, on RGB and on each channel separately"
+msgstr "トーンカーブ：RGB 全体にも、各チャンネル個別にも適用可能"
+
+#. Found in description list item.
+msgid "Levels, with black point, white point and gamma"
+msgstr "レベル補正：黒点、白点、ガンマ"
+
+#. Found in description list item.
+msgid "Sharpen, blur, vignette and grain"
+msgstr "シャープ、ぼかし、ビネット、グレイン"
+
+#. Found in description list item.
+msgid "A live histogram that follows the slider as you drag it"
+msgstr "スライダーのドラッグに合わせて更新されるライブヒストグラム"
+
+#. Found in description list item.
+msgid "Presets, so a look you like can be reused on the next photo"
+msgstr "プリセット：気に入った仕上がりを次の写真にも再利用できます"
+
+#. Found in description header.
+msgid "Paint"
+msgstr "ペイント"
+
+#. Found in description paragraph.
+msgid "Eighteen tools on a two column rail, grouped the way you would expect:"
+msgstr "2 列のツールバーに 18 種類のツールを、想像どおりのグループに分けて配置しています："
+
+#. Found in description list item.
+msgid "Move and transform, with handles that scale, rotate and snap"
+msgstr "移動と変形：拡大縮小、回転、スナップができるハンドル付き"
+
+#. Found in description list item.
+msgid "Select as a rectangle, an ellipse, a freeform lasso or a polygon"
+msgstr "選択：長方形、楕円形、自由形状のなげなわ、多角形"
+
+#. Found in description list item.
+msgid "A magnetic lasso that snaps to the edge you are tracing, so trace roughly round a subject and the outline finds its boundary for you"
+msgstr "マグネット選択ツール：なぞっているエッジに吸着するため、被写体のまわりをおおまかになぞるだけで、輪郭が境界を見つけてくれます"
+
+#. Found in description list item.
+msgid "Build a selection up: add to it, subtract from it, or keep only the overlap, from the options bar or by holding Shift, Alt or both"
+msgstr "選択範囲の組み立て：オプションバーから、または Shift、Alt、あるいはその両方を押しながら、選択範囲への追加、選択範囲からの削除、重なった部分のみの保持ができます"
+
+#. Found in description list item.
+msgid "Step a selection back when an addition went the wrong way, with Cmd/Ctrl+Shift+D or the Step back button — which also brings back a selection you dropped"
+msgstr "追加がうまくいかなかったときは、Cmd/Ctrl+Shift+D または「Step back」ボタンで選択範囲を 1 段階戻せます。解除した選択範囲を元に戻すこともできます"
+
+#. Found in description list item.
+msgid "Magic wand, which selects the region around the colour you click"
+msgstr "自動選択ツール：クリックした色の周囲の領域を選択します"
+
+#. Found in description list item.
+msgid "Crop, with aspect presets"
+msgstr "トリミング：縦横比のプリセット付き"
+
+#. Found in description list item.
+msgid "Eyedropper, brush, eraser, paint bucket and gradient"
+msgstr "スポイト、ブラシ、消しゴム、塗りつぶし、グラデーション"
+
+#. Found in description list item.
+msgid "Retouch: blur, sharpen, smudge and heal"
+msgstr "レタッチ：ぼかし、シャープ、指先、修復"
+
+#. Found in description list item.
+msgid "Clone stamp, with an Alt click to set the sample point"
+msgstr "コピースタンプ：Alt + クリックでサンプル位置を設定"
+
+#. Found in description list item.
+msgid "Dodge, burn, desaturate and saturate"
+msgstr "覆い焼き、焼き込み、彩度を下げる、彩度を上げる"
+
+#. Found in description list item.
+msgid "History brush, which paints the original image back"
+msgstr "ヒストリーブラシ：元の画像を描き戻します"
+
+#. Found in description list item.
+msgid "Shapes, paths and text"
+msgstr "シェイプ、パス、テキスト"
+
+#. Found in description list item.
+msgid "Hand and zoom, plus a quick mask and a full screen mode"
+msgstr "手のひらツールとズーム、さらにクイックマスクとフルスクリーンモード"
+
+#. Found in description paragraph.
+msgid "Brushes have a size, a shape and a hardness, and the cursor is a ring the real size of the brush against the image, so you are never guessing at how much a stroke will cover."
+msgstr "ブラシにはサイズ、形状、硬さがあり、カーソルは画像に対するブラシの実寸のリングで表示されます。そのため、ひと塗りでどれだけの範囲を塗るのか推測する必要はありません。"
+
+#. Found in description header.
+msgid "Layers"
+msgstr "レイヤー"
+
+#. Found in description paragraph.
+msgid "Text, pasted pixels and dropped photos each arrive as their own layer, so you can move one without disturbing the others, reorder them, hide them or throw one away. Undo reaches painted pixels too, not only settings."
+msgstr "テキスト、ペーストしたピクセル、ドロップした写真はそれぞれ独立したレイヤーとして追加されるため、ほかのレイヤーに影響を与えずに 1 つだけ移動したり、並べ替えたり、非表示にしたり、削除したりできます。取り消しは設定だけでなく、ペイントしたピクセルにも有効です。"
+
+#. Found in description header.
+msgid "Drag a photo in"
+msgstr "写真をドラッグして追加"
+
+#. Found in description paragraph.
+msgid "Drag an image from the Media Library, from the desktop, or from your computer straight onto the canvas. It lands as a new layer, where you dropped it, scaled to fit."
+msgstr "メディアライブラリ、デスクトップ、またはコンピューターから画像をキャンバスに直接ドラッグできます。画像はドロップした位置に、収まるサイズに縮小された新しいレイヤーとして配置されます。"
+
+#. Found in description header.
+msgid "Edit a featured image or a WooCommerce product image"
+msgstr "アイキャッチ画像や WooCommerce の商品画像を編集"
+
+#. Found in description paragraph.
+msgid "Drag a WooCommerce product onto the AllTerrain Photo Editor icon and its photo opens straight away, skipping the picker. Any post with a picture works the same way, and so does dropping a photo itself."
+msgstr "WooCommerce の商品を AllTerrain Photo Editor のアイコンにドラッグすると、画像の選択画面を経由せずに、その商品の写真がすぐに開きます。画像のある投稿でも同じように動作し、写真そのものをドロップした場合も同様です。"
+
+#. Found in description paragraph.
+msgid "When you save, AllTerrain Photo Editor asks whether the product should start using the edit. Either answer leaves your original where it is: choosing to update writes a new copy and points the product at it, so going back is a matter of pointing it at the old one again."
+msgstr "保存時に、AllTerrain Photo Editor は編集した画像を商品で使い始めるかどうかを確認します。どちらを選んでも元の画像はそのまま残ります。更新を選ぶと新しいコピーが作成され、商品がそのコピーを参照するようになります。元に戻したいときは、再び元の画像を参照させるだけです。"
+
+#. Found in description header.
+msgid "Save as WebP, PNG or JPEG"
+msgstr "WebP、PNG、JPEG で保存"
+
+#. Found in description paragraph.
+msgid "Choose the format of the copy you save: JPEG for the smallest file, PNG to keep transparency, or WebP for small files that can also keep it. JPEG and WebP have a quality slider."
+msgstr "保存するコピーの形式を選べます。ファイルサイズを最小にするなら JPEG、透過を保持するなら PNG、透過を保持しつつファイルを小さくするなら WebP です。JPEG と WebP には画質スライダーがあります。"
+
+#. Found in description header.
+msgid "Your originals are never touched"
+msgstr "元の画像には一切手を加えません"
+
+#. Found in description paragraph.
+msgid "Saving always writes a new attachment and records the edit as a recipe: the list of adjustments, not the pixels. Re-opening a photo restores every slider exactly where you left it and renders again from the original. Editing the same image ten times costs nothing in quality, because every render is a first generation one."
+msgstr "保存すると必ず新しい添付ファイルが作成され、編集内容はレシピとして記録されます。レシピとは、ピクセルではなく調整内容のリストです。写真を開き直すと、すべてのスライダーが前回の位置に正確に戻り、元の画像から改めてレンダリングされます。毎回のレンダリングが元の画像から直接行われる第一世代のものなので、同じ画像を 10 回編集しても画質は一切劣化しません。"
+
+#. Found in description header.
+msgid "Fast, because of how it renders"
+msgstr "高速なのは、レンダリングの仕組みのおかげ"
+
+#. Found in description paragraph.
+msgid "Adjustments are composed into a single GPU pass rather than chained one after another. That is not only quicker. It also means the image is quantised once instead of once per adjustment, which is the difference between a clean gradient and visible banding in a sky."
+msgstr "調整は 1 つずつ順番に適用するのではなく、1 回の GPU パスにまとめて処理されます。これは速いだけではありません。画像の量子化が調整ごとではなく 1 回で済むため、空のグラデーションがなめらかになるか、目に見えるバンディング（階調の段差）が出るかの差になります。"
+
+#. Found in requires_openstation paragraph.
+msgid "AllTerrain Photo Editor runs inside the OpenStation plugin (previously called Desktop Mode), which turns wp-admin into a desktop, and needs it installed. That is not decoration: the rendering engine is OpenStation's. AllTerrain Photo Editor ships none of its own and borrows the desktop's, which is why this plugin is a few tens of kilobytes rather than the best part of a megabyte, and why your browser only ever downloads one copy."
+msgstr "AllTerrain Photo Editor は、wp-admin をデスクトップに変える OpenStation プラグイン（旧称 Desktop Mode）の中で動作するため、OpenStation のインストールが必要です。これは見た目のためではありません。レンダリングエンジンは OpenStation のものです。AllTerrain Photo Editor は独自のエンジンを同梱せず、デスクトップのエンジンを借りて使います。そのため、このプラグインのサイズは 1 MB 近くではなく数十 KB に収まり、ブラウザーがダウンロードするコピーも常に 1 つだけです。"
+
+#. Found in requires_openstation paragraph.
+msgid "Install and activate OpenStation first. Without it, AllTerrain Photo Editor tells you what it needs and otherwise stays out of the way."
+msgstr "先に OpenStation をインストールして有効化してください。OpenStation がない場合、AllTerrain Photo Editor は必要なものを案内するだけで、それ以外は何もしません。"
+
+#. Found in requires_openstation header.
+msgid "Where it opens"
+msgstr "開く場所"
+
+#. Found in requires_openstation paragraph.
+msgid "With the desktop switched on, AllTerrain Photo Editor is a real window: chrome you can move and resize, an icon on the wallpaper, and drag and drop between windows."
+msgstr "デスクトップを有効にすると、AllTerrain Photo Editor は本物のウィンドウになります。移動やサイズ変更ができるウィンドウ枠、壁紙上のアイコン、ウィンドウ間のドラッグ＆ドロップが使えます。"
+
+#. Found in requires_openstation paragraph.
+msgid "The desktop is a per-user preference, and with it switched off AllTerrain Photo Editor still opens — under Media → Edit Photos, and over the top of whatever you were doing when you choose \"Edit with AllTerrain Photo Editor\" in the Media Library, in the media picker or on an image block. Every tool is the same one. What you do not get is the window, the wallpaper icon and dragging photos between windows."
+msgstr "デスクトップはユーザーごとの設定です。デスクトップをオフにしていても AllTerrain Photo Editor は開けます。「メディア → Edit Photos」から開くほか、メディアライブラリ、メディア選択画面、または画像ブロックで「Edit with AllTerrain Photo Editor」を選ぶと、作業中の画面の上に重ねて開きます。ツールはすべて同じです。使えないのは、ウィンドウ、壁紙上のアイコン、ウィンドウ間での写真のドラッグです。"
+
+#. Found in installation list item.
+msgid "Install and activate the OpenStation plugin."
+msgstr "OpenStation プラグインをインストールして有効化します。"
+
+#. Found in installation list item.
+msgid "Upload the <code>allterrain-photo-editor</code> folder to <code>/wp-content/plugins/</code>, or install it from the Plugins screen."
+msgstr "<code>allterrain-photo-editor</code> フォルダーを <code>/wp-content/plugins/</code> にアップロードするか、プラグイン画面からインストールします。"
+
+#. Found in installation list item.
+msgid "Activate AllTerrain Photo Editor through the Plugins menu."
+msgstr "「プラグイン」メニューから AllTerrain Photo Editor を有効化します。"
+
+#. Found in installation list item.
+msgid "Open AllTerrain Photo Editor from the dock or the desktop, or choose \"Edit with AllTerrain Photo Editor\" on any image in the Media Library. With the desktop switched off, use Media → Edit Photos."
+msgstr "ドックまたはデスクトップから AllTerrain Photo Editor を開くか、メディアライブラリの任意の画像で「Edit with AllTerrain Photo Editor」を選択します。デスクトップをオフにしている場合は「メディア → Edit Photos」を使用します。"
+
+#. Found in faq header.
+msgid "Does this change my original images?"
+msgstr "元の画像は変更されますか？"
+
+#. Found in faq paragraph.
+msgid "No. Every save creates a new attachment and links it back to the original. Your original file is never rewritten."
+msgstr "いいえ。保存するたびに新しい添付ファイルが作成され、元の画像にリンクされます。元のファイルが書き換えられることはありません。"
+
+#. Found in faq header.
+msgid "Do I need ImageMagick or GD?"
+msgstr "ImageMagick や GD は必要ですか？"
+
+#. Found in faq paragraph.
+msgid "Not for the editing. All of it happens in your browser using WebGL. WordPress still uses its normal image library to generate the thumbnail sizes of whatever you save."
+msgstr "編集には必要ありません。編集はすべてブラウザー内で WebGL を使って行われます。保存した画像の各サムネイルサイズの生成には、WordPress が通常の画像ライブラリを引き続き使用します。"
+
+#. Found in faq header.
+msgid "Which browsers are supported?"
+msgstr "対応しているブラウザーは？"
+
+#. Found in faq paragraph.
+msgid "Any browser with WebGL 2, which is every current version of Chrome, Firefox, Safari and Edge."
+msgstr "WebGL 2 に対応したブラウザーであれば使用できます。Chrome、Firefox、Safari、Edge の現行バージョンはすべて対応しています。"
+
+#. Found in faq header.
+msgid "My images are served from a CDN. Will it work?"
+msgstr "画像を CDN から配信しています。使えますか？"
+
+#. Found in faq paragraph.
+msgid "Yes. When a CDN does not send the CORS headers a GPU canvas requires, AllTerrain Photo Editor streams the original through your own site instead."
+msgstr "はい。GPU キャンバスに必要な CORS ヘッダーを CDN が送信しない場合、AllTerrain Photo Editor は元の画像をご自身のサイト経由でストリーミングします。"
+
+#. Found in faq header.
+msgid "Why is GIF not supported?"
+msgstr "GIF に対応していないのはなぜですか？"
+
+#. Found in faq paragraph.
+msgid "Rendering an animated GIF through a canvas silently flattens it to a single frame. Rather than quietly destroy the animation, AllTerrain Photo Editor does not offer to edit them. The photo picker leaves them out for the same reason, and tells you how many it left out, so a library of GIFs does not read as an empty one."
+msgstr "アニメーション GIF をキャンバスでレンダリングすると、何の警告もなく 1 フレームに平坦化されてしまいます。アニメーションを黙って壊すくらいならと、AllTerrain Photo Editor は GIF を編集対象にしていません。写真の選択画面でも同じ理由で GIF を除外しており、除外した数も表示するため、GIF ばかりのライブラリが空に見えることはありません。"
+
+#. Found in faq header.
+msgid "Are brush strokes stored in the recipe?"
+msgstr "ブラシのストロークはレシピに保存されますか？"
+
+#. Found in faq paragraph.
+msgid "No, and the difference decides what re-opening does. Adjustments, crops and transforms are instructions: they are stored in the recipe, replayed over your original, and come back as sliders you can still move. Painted, pasted and dropped pixels are not instructions, so they are baked into the file you save."
+msgstr "いいえ。この違いによって、開き直したときの動作が決まります。調整、トリミング、変形は指示です。レシピに保存され、元の画像に対して再適用され、引き続き動かせるスライダーとして戻ってきます。ペイント、ペースト、ドロップしたピクセルは指示ではないため、保存するファイルに焼き込まれます。"
+
+#. Found in faq paragraph.
+msgid "That makes a painted save its own original. Re-open it and you see exactly the pixels you saved, with the sliders back at zero, ready to be edited again from there. The editor says so when you save, rather than letting you find out later."
+msgstr "つまり、ペイントして保存した画像は、それ自体が新しい元画像になります。開き直すと保存したとおりのピクセルが表示され、スライダーはゼロに戻り、そこから再び編集できます。後から気付くことのないよう、エディターは保存時にそのことをお知らせします。"
+
+#. Found in faq header.
+msgid "Can I use it with the desktop switched off?"
+msgstr "デスクトップをオフにしても使えますか？"
+
+#. Found in faq paragraph.
+msgid "Yes. It opens under Media → Edit Photos, and as an overlay when you choose \"Edit with AllTerrain Photo Editor\" from the Media Library, the media picker or an image block. Every tool is the same one; what you do not get is the movable window, the wallpaper icon and dragging photos between windows. OpenStation still has to be installed, because the rendering engine comes from it."
+msgstr "はい。「メディア → Edit Photos」から開けるほか、メディアライブラリ、メディア選択画面、または画像ブロックから「Edit with AllTerrain Photo Editor」を選ぶと、オーバーレイとして開きます。ツールはすべて同じです。使えないのは、移動できるウィンドウ、壁紙上のアイコン、ウィンドウ間での写真のドラッグです。レンダリングエンジンは OpenStation から提供されるため、OpenStation のインストールは引き続き必要です。"
+
+#. Found in faq header.
+msgid "Does it edit in real colour?"
+msgstr "実際の色で編集できますか？"
+
+#. Found in faq paragraph.
+msgid "There is a Light switch at the top of the Adjustments panel. Left on sRGB it behaves like WordPress and like most browser editors: the maths is done on the stored values. Switched to Linear, exposure is applied to <em>light</em> instead, so a stop up or down lands where a camera would have put it rather than where the file's encoding does. Existing edits are unaffected; the setting is saved with each one."
+msgstr "調整パネルの上部に「Light」スイッチがあります。sRGB のままにすると、WordPress や多くのブラウザー上のエディターと同じように、保存された値に対して計算が行われます。Linear に切り替えると、露出は<em>光</em>に対して適用されます。そのため、1 段上げ下げしたときの結果が、ファイルのエンコードによる位置ではなく、カメラで撮影した場合と同じ位置になります。既存の編集には影響しません。この設定は編集ごとに保存されます。"
+
+#. Found in faq header.
+msgid "Where do I get help?"
+msgstr "サポートはどこで受けられますか？"
+
+#. Found in faq paragraph.
+msgid "Ask on the <a href=\"https://wordpress.org/support/plugin/allterrain-photo-editor/\">support forum</a>, where an answer also helps the next person with the same question. If you have found a bug and can say how to reproduce it, you can open an issue on <a href=\"https://github.com/AllTerrainDeveloper/allterrain-photo-editor/issues\">GitHub</a> instead."
+msgstr "<a href=\"https://wordpress.org/support/plugin/allterrain-photo-editor/\">サポートフォーラム</a>で質問してください。回答は同じ疑問を持つ次の人の役にも立ちます。バグを見つけ、再現手順を説明できる場合は、<a href=\"https://github.com/AllTerrainDeveloper/allterrain-photo-editor/issues\">GitHub</a> で issue を作成することもできます。"
+
+#. Found in Screenshot description.
+msgid "The editor as a desktop window: the tool rail on the left, the layer stack, a live histogram and every adjustment on the right, and the magnetic lasso following the edge of a plate."
+msgstr "デスクトップウィンドウとして表示したエディター。左側にツールバー、右側にレイヤースタック、ライブヒストグラム、すべての調整項目があり、マグネット選択ツールがお皿の縁をなぞっています。"
+
+#. Found in Screenshot description.
+msgid "Text typed straight onto the canvas, as a layer of its own, with a transform box to move, scale and rotate it."
+msgstr "キャンバスに直接入力したテキスト。独立したレイヤーになっており、移動・拡大縮小・回転のための変形ボックスが付いています。"
+
+#. Found in Screenshot description.
+msgid "Curves, on RGB or on one channel at a time, against the photo being graded — the editor in its own window on the OpenStation desktop."
+msgstr "補正中の写真に RGB または 1 チャンネルずつ適用するトーンカーブ。OpenStation デスクトップ上の専用ウィンドウで動作するエディター。"
+
+#. Found in Screenshot description.
+msgid "A soft round brush, its size, hardness and opacity on the options bar, over levels, sharpening, vignette and grain."
+msgstr "ソフトな円形ブラシ。オプションバーにサイズ、硬さ、不透明度が表示されています。下の画像にはレベル補正、シャープ、ビネット、グレインが適用されています。"
+
+#. Found in third-party_libraries paragraph.
+msgid "This plugin bundles no third-party libraries and makes no external or CDN requests."
+msgstr "このプラグインはサードパーティ製ライブラリを同梱しておらず、外部や CDN へのリクエストも行いません。"
+
+#. Found in third-party_libraries paragraph.
+msgid "Rendering uses PixiJS (MIT), which is bundled by the OpenStation plugin and served from your own server. AllTerrain Photo Editor asks OpenStation for it rather than shipping a second copy: that keeps this plugin small, and two instances of the same rendering library on one page share GPU resources through globals, where tearing one down can break the other."
+msgstr "レンダリングには PixiJS（MIT ライセンス）を使用しています。PixiJS は OpenStation プラグインに同梱されており、ご自身のサーバーから配信されます。AllTerrain Photo Editor は 2 つ目のコピーを同梱せず、OpenStation から PixiJS を取得します。これによりこのプラグインを小さく保てます。また、同じレンダリングライブラリのインスタンスが 1 つのページに 2 つあると、グローバル変数を通じて GPU リソースを共有するため、一方を破棄するともう一方が壊れる可能性があります。"

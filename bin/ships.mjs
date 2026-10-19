@@ -27,7 +27,9 @@ export const EXCLUDED = new Set( [
 	'tsconfig.json',
 
 	// Developer documentation. `readme.txt` is the one users see, and it does ship.
+	// `docs/` holds the readme's translations, which go to translate.wordpress.org.
 	'README.md',
+	'docs',
 
 	// Output of the packaging step itself.
 	'dist',
