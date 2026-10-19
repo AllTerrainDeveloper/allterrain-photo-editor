@@ -5,7 +5,7 @@ Requires at least: 6.0
 Requires Plugins: desktop-mode
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.2
+Stable tag: 1.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -138,6 +138,10 @@ This plugin bundles no third-party libraries and makes no external or CDN reques
 Rendering uses PixiJS (MIT), which is bundled by the OpenStation plugin and served from your own server. AllTerrain Photo Editor asks OpenStation for it rather than shipping a second copy: that keeps this plugin small, and two instances of the same rendering library on one page share GPU resources through globals, where tearing one down can break the other.
 
 == Changelog ==
+
+= 1.1.3 =
+* Hold Space to pan the image with any tool, as in Photoshop. Let go and the tool comes back.
+* A sideways swipe on a Magic Mouse or trackpad pans the image instead of sending the browser tab Back.
 
 = 1.1.2 =
 * A photo saved to the OpenStation desktop can be dropped onto the AllTerrain Photo Editor icon to open it, as it already could onto the editor window. It is added to the Media Library on drop. Media Library items and posts placed on the desktop open from the icon too.

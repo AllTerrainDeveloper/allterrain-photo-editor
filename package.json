@@ -1,6 +1,6 @@
 {
 	"name": "allterrain-photo-editor",
-	"version": "1.1.2",
+	"version": "1.1.3",
 	"private": true,
 	"description": "A non-destructive, GPU-accelerated image editor for the WordPress media library.",
 	"license": "GPL-2.0-or-later",
