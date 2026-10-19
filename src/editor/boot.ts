@@ -110,7 +110,11 @@ async function startRenderer( editor: Editor ): Promise< void > {
 		renderer.view.onChange( () =>
 			editor.shell.syncBackdrop( renderer.view.viewport() )
 		),
-		attachPasteboard( editor.shell.stage, () => editor.renderer?.view ?? null )
+		attachPasteboard(
+			editor.shell.pasteboard,
+			editor.shell.stage,
+			() => editor.renderer?.view ?? null
+		)
 	);
 
 	editor.shell.syncBackdrop( renderer.view.viewport() );

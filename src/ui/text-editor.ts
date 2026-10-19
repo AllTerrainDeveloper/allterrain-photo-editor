@@ -188,7 +188,9 @@ export class TextEditor {
 		this.options.stage.appendChild( field );
 
 		this.restyle();
-		field.focus();
+		// Without `preventScroll` the browser may scroll the pasteboard to reveal the
+		// field, and the pasteboard reads any scroll as a pan.
+		field.focus( { preventScroll: true } );
 
 		// The caret goes to the end, where a correction or a continuation both start.
 		field.setSelectionRange( field.value.length, field.value.length );
