@@ -374,10 +374,48 @@
 	min-block-size: 0;
 }
 
-.lz-stage {
+/*
+ * The pasteboard is a scroll container that never visibly scrolls: a swipe scrolls
+ * it, the scroll becomes a pan, and the stage stays pinned in place with `sticky`.
+ * See `EditorShell.pasteboard` for why a cancelled wheel event is not enough.
+ *
+ * The runway is what there is to scroll. It is far larger than any pan needs, and
+ * the pasteboard re-centres on it whenever a swipe ends, so a scroll never meets an
+ * edge -- an edge is where the browser would take the swipe back.
+ */
+.lz-pasteboard {
 	position: relative;
 	flex: 1 1 auto;
 	min-inline-size: 0;
+	min-block-size: 0;
+	display: grid;
+	overflow: scroll;
+	overscroll-behavior: none;
+	scrollbar-width: none;
+
+	/* Gives the stage `cqi` / `cqb` units: the pasteboard's own size, not the runway's. */
+	container-type: size;
+}
+
+.lz-pasteboard::-webkit-scrollbar {
+	display: none;
+}
+
+.lz-pasteboard__runway {
+	grid-area: 1 / 1;
+	inline-size: 400000px;
+	block-size: 400000px;
+	pointer-events: none;
+}
+
+.lz-stage {
+	grid-area: 1 / 1;
+	position: sticky;
+	inset-block-start: 0;
+	inset-inline-start: 0;
+	z-index: 1;
+	inline-size: 100cqi;
+	block-size: 100cqb;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -1024,7 +1062,7 @@ body.lz-overlay-open {
 		border-block-start: 1px solid var( --lz-border );
 	}
 
-	.lz-stage {
+	.lz-pasteboard {
 		min-block-size: 40vh;
 	}
 
@@ -1561,6 +1599,26 @@ input.lz-field__control {
 .lz-stage[ data-tool='zoom' ] { cursor: zoom-in; }
 .lz-stage[ data-tool='hand' ] { cursor: grab; }
 .lz-stage[ data-tool='hand' ]:active { cursor: grabbing; }
+
+/*
+ * Space held: the hand, whatever the tool. Over the descendants too, because the
+ * transform and crop handles set cursors of their own, and !important because every
+ * tool rule above is at least as specific as this one.
+ */
+.lz-stage.is-space-panning,
+.lz-stage.is-space-panning * { cursor: grab !important; }
+.lz-stage.is-space-dragging,
+.lz-stage.is-space-dragging * { cursor: grabbing !important; }
+.lz-stage.is-space-panning .lz-brush-cursor { display: none !important; }
+
+/*
+ * A sideways swipe anywhere in an open editor -- the sidebar, the top bar -- is not a
+ * request to leave it. Chrome reads the root's `overscroll-behavior-x` before turning
+ * a trackpad swipe that runs out of room into Back. Over the canvas itself the
+ * pasteboard's scroll container is what does the work; see `EditorShell.pasteboard`.
+ */
+html.lz-has-editor,
+html.lz-has-editor body { overscroll-behavior-x: none; }
 
 /* -- Colour swatches -------------------------------------------------------- */
 

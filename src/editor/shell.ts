@@ -46,6 +46,18 @@ export class EditorShell {
 	/** The canvas area. Overlays attach here. */
 	readonly stage: HTMLElement;
 
+	/**
+	 * A scroll container around the stage that never visibly scrolls.
+	 *
+	 * It exists so a swipe has something real to scroll. Chrome on a Mac decides
+	 * whether a Magic Mouse swipe means Back by asking whether the *first scroll* of
+	 * the gesture moved anything, and a cancelled wheel event never gets as far as
+	 * scrolling -- so cancelling it is read as "nothing scrolled here" and the page
+	 * navigates away. This element scrolls instead, the stage is pinned inside it
+	 * with `position: sticky`, and the pasteboard turns the scroll into a pan.
+	 */
+	readonly pasteboard: HTMLElement;
+
 	/** Shows where the canvas is, behind the rendered output. */
 	readonly backdrop: HTMLElement;
 
@@ -110,8 +122,16 @@ export class EditorShell {
 		const body = document.createElement( 'div' );
 		body.className = 'lz-body';
 
+		this.pasteboard = document.createElement( 'div' );
+		this.pasteboard.className = 'lz-pasteboard';
+
+		const runway = document.createElement( 'div' );
+		runway.className = 'lz-pasteboard__runway';
+		runway.setAttribute( 'aria-hidden', 'true' );
+
 		this.stage = document.createElement( 'div' );
 		this.stage.className = 'lz-stage';
+		this.pasteboard.append( this.stage, runway );
 
 		// Marks out the canvas itself. The checkerboard belongs here rather than on
 		// the whole stage: inside the canvas it means "transparent pixels", outside
@@ -134,7 +154,7 @@ export class EditorShell {
 
 		this.sidebarTab = createSidebarToggle( this.root, options.onSidebarToggle );
 
-		body.append( this.stage, this.sidebar, this.sidebarTab.el );
+		body.append( this.pasteboard, this.sidebar, this.sidebarTab.el );
 		this.root.append( this.topbar, body );
 	}
 

@@ -8548,26 +8548,172 @@ fn mainFragment(
       brushListeners: editor.state.brushes
     });
   }
-  function attachPasteboard(stage, getRenderer) {
+  function isTypingTarget(target) {
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+    return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+  }
+  function onEditorKey(type, handler) {
+    const listener = (event) => {
+      if (!isTypingTarget(event.target)) {
+        handler(event);
+      }
+    };
+    document.addEventListener(type, listener);
+    return () => document.removeEventListener(type, listener);
+  }
+  function hasCommandKey(event) {
+    return event.metaKey || event.ctrlKey;
+  }
+  let openEditors = 0;
+  function attachPasteboard(pasteboard, stage, getRenderer) {
     const onWheel = (event) => {
       const renderer = getRenderer();
-      if (!renderer) {
+      if (!renderer || !(event.ctrlKey || event.metaKey)) {
         return;
       }
       event.preventDefault();
-      if (event.ctrlKey || event.metaKey) {
-        const bounds = stage.getBoundingClientRect();
-        renderer.zoomAt(
-          Math.exp(-event.deltaY * 2e-3),
-          event.clientX - bounds.left,
-          event.clientY - bounds.top
-        );
-        return;
-      }
-      renderer.pan(-event.deltaX, -event.deltaY);
+      const bounds = stage.getBoundingClientRect();
+      renderer.zoomAt(
+        Math.exp(-event.deltaY * 2e-3),
+        event.clientX - bounds.left,
+        event.clientY - bounds.top
+      );
     };
     stage.addEventListener("wheel", onWheel, { passive: false });
-    return () => stage.removeEventListener("wheel", onWheel);
+    const detachScroll = attachScrollPan(pasteboard, getRenderer);
+    const detachSpace = attachSpacePan(stage, getRenderer);
+    const releaseSwipe = holdHorizontalSwipe();
+    return () => {
+      stage.removeEventListener("wheel", onWheel);
+      detachScroll();
+      detachSpace();
+      releaseSwipe();
+    };
+  }
+  function attachScrollPan(pasteboard, getRenderer) {
+    let last = { x: pasteboard.scrollLeft, y: pasteboard.scrollTop };
+    const centre = () => {
+      const x = (pasteboard.scrollWidth - pasteboard.clientWidth) / 2;
+      const y = (pasteboard.scrollHeight - pasteboard.clientHeight) / 2;
+      const rtl = "rtl" === getComputedStyle(pasteboard).direction;
+      return { x: rtl ? -x : x, y };
+    };
+    const recentre = () => {
+      const middle = centre();
+      pasteboard.scrollLeft = middle.x;
+      pasteboard.scrollTop = middle.y;
+      last = { x: pasteboard.scrollLeft, y: pasteboard.scrollTop };
+    };
+    const onScroll = () => {
+      const now = { x: pasteboard.scrollLeft, y: pasteboard.scrollTop };
+      const dx = now.x - last.x;
+      const dy = now.y - last.y;
+      last = now;
+      if (dx || dy) {
+        getRenderer()?.pan(-dx, -dy);
+      }
+      const middle = centre();
+      if (Math.abs(now.x - middle.x) > Math.abs(middle.x) / 2 || Math.abs(now.y - middle.y) > Math.abs(middle.y) / 2) {
+        recentre();
+      }
+    };
+    const resize = "undefined" === typeof ResizeObserver ? null : new ResizeObserver(recentre);
+    resize?.observe(pasteboard);
+    pasteboard.addEventListener("scroll", onScroll, { passive: true });
+    pasteboard.addEventListener("scrollend", recentre);
+    recentre();
+    return () => {
+      resize?.disconnect();
+      pasteboard.removeEventListener("scroll", onScroll);
+      pasteboard.removeEventListener("scrollend", recentre);
+    };
+  }
+  function holdHorizontalSwipe() {
+    let held = true;
+    openEditors++;
+    document.documentElement.classList.add("lz-has-editor");
+    return () => {
+      if (!held) {
+        return;
+      }
+      held = false;
+      openEditors--;
+      if (openEditors < 1) {
+        openEditors = 0;
+        document.documentElement.classList.remove("lz-has-editor");
+      }
+    };
+  }
+  function attachSpacePan(stage, getRenderer) {
+    let held = false;
+    let last = null;
+    const isSpace = (event) => " " === event.key || "Space" === event.code;
+    const endDrag = () => {
+      last = null;
+      stage.classList.remove("is-space-dragging");
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", endDrag);
+      window.removeEventListener("pointercancel", endDrag);
+    };
+    const release = () => {
+      held = false;
+      stage.classList.remove("is-space-panning");
+      endDrag();
+    };
+    const onMove = (event) => {
+      const renderer = getRenderer();
+      if (!last || !renderer) {
+        return;
+      }
+      renderer.pan(event.clientX - last.x, event.clientY - last.y);
+      last = { x: event.clientX, y: event.clientY };
+    };
+    const onPointerDown = (event) => {
+      if (!held || 0 !== event.button) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      last = { x: event.clientX, y: event.clientY };
+      stage.classList.add("is-space-dragging");
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", endDrag);
+      window.addEventListener("pointercancel", endDrag);
+    };
+    const offKeyDown = onEditorKey("keydown", (event) => {
+      if (!isSpace(event) || hasCommandKey(event)) {
+        return;
+      }
+      if (held) {
+        event.preventDefault();
+        return;
+      }
+      if (!stage.matches(":hover") || !getRenderer()) {
+        return;
+      }
+      event.preventDefault();
+      held = true;
+      stage.classList.add("is-space-panning");
+    });
+    const onKeyUp = (event) => {
+      if (!held || !isSpace(event)) {
+        return;
+      }
+      event.preventDefault();
+      release();
+    };
+    stage.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", release);
+    return () => {
+      release();
+      offKeyDown();
+      stage.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", release);
+    };
   }
   function pushToRenderer(renderer, recipe, scope) {
     const all = "all" === scope;
@@ -9009,24 +9155,6 @@ fn mainFragment(
       width: Math.max(1, Math.round(width * scale)),
       height: Math.max(1, Math.round(height * scale))
     };
-  }
-  function isTypingTarget(target) {
-    if (!(target instanceof HTMLElement)) {
-      return false;
-    }
-    return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
-  }
-  function onEditorKey(type, handler) {
-    const listener = (event) => {
-      if (!isTypingTarget(event.target)) {
-        handler(event);
-      }
-    };
-    document.addEventListener(type, listener);
-    return () => document.removeEventListener(type, listener);
-  }
-  function hasCommandKey(event) {
-    return event.metaKey || event.ctrlKey;
   }
   function attachEditorShortcuts(target) {
     const detach = [
@@ -12226,7 +12354,7 @@ fn mainFragment(
       this.field = field;
       this.options.stage.appendChild(field);
       this.restyle();
-      field.focus();
+      field.focus({ preventScroll: true });
       field.setSelectionRange(field.value.length, field.value.length);
       this.options.onStateChange?.();
     }
@@ -13368,7 +13496,11 @@ fn mainFragment(
       renderer.view.onChange(
         () => editor.shell.syncBackdrop(renderer.view.viewport())
       ),
-      attachPasteboard(editor.shell.stage, () => editor.renderer?.view ?? null)
+      attachPasteboard(
+        editor.shell.pasteboard,
+        editor.shell.stage,
+        () => editor.renderer?.view ?? null
+      )
     );
     editor.shell.syncBackdrop(renderer.view.viewport());
     editor.stage = buildStageToolset(editor);
@@ -14363,8 +14495,14 @@ fn mainFragment(
       this.topbar.append(this.title, this.options, this.actions);
       const body = document.createElement("div");
       body.className = "lz-body";
+      this.pasteboard = document.createElement("div");
+      this.pasteboard.className = "lz-pasteboard";
+      const runway = document.createElement("div");
+      runway.className = "lz-pasteboard__runway";
+      runway.setAttribute("aria-hidden", "true");
       this.stage = document.createElement("div");
       this.stage.className = "lz-stage";
+      this.pasteboard.append(this.stage, runway);
       this.backdrop = document.createElement("div");
       this.backdrop.className = "lz-canvas-backdrop";
       this.backdrop.setAttribute("aria-hidden", "true");
@@ -14378,7 +14516,7 @@ fn mainFragment(
       this.sidebar.id = "lz-sidebar";
       this.sidebar.setAttribute("aria-label", __("Tools"));
       this.sidebarTab = createSidebarToggle(this.root, options.onSidebarToggle);
-      body.append(this.stage, this.sidebar, this.sidebarTab.el);
+      body.append(this.pasteboard, this.sidebar, this.sidebarTab.el);
       this.root.append(this.topbar, body);
     }
     /**
