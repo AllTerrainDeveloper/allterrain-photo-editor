@@ -21,8 +21,13 @@ export interface StageToolsOptions {
 	getBrush: () => BrushSettings;
 	/** Changes a setting -- the eyedropper picks a colour this way. */
 	setBrush: ( patch: Partial< BrushSettings > ) => void;
-	/** The layer strokes land on. */
-	getTargetLayerId: () => string;
+	/**
+	 * The layer strokes land on.
+	 *
+	 * Erasing asks for one with pixels on it to take away, which is not always the one
+	 * paint would go to -- see `eraseTarget()`.
+	 */
+	getTargetLayerId: ( erasing?: boolean ) => string;
 	/** Stamps one dab into a layer. */
 	stamp: (
 		layerId: string,

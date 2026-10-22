@@ -22,7 +22,7 @@ import type { LayerTextures } from './layer-textures';
  * @param transform Layer transform.
  * @param canvas    Canvas the transform is expressed against.
  */
-function placeLayer(
+export function placeLayer(
 	sprite: GpuSprite,
 	transform: LayerTransform,
 	canvas: CanvasSize

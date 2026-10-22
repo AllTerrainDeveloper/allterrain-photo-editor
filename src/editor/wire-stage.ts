@@ -14,7 +14,7 @@ import { SelectionOverlay } from './selection-overlay';
 import { panelContext } from './adapters';
 import { EditorClipboard } from './clipboard';
 import type { ClipboardPixels } from './clipboard';
-import { paintTarget } from './paint-target';
+import { eraseTarget, paintTarget } from './paint-target';
 import { hitTextLayer } from './text-layer';
 import type { Editor } from './editor';
 
@@ -124,7 +124,8 @@ export function buildStageToolset( editor: Editor ): StageToolset {
 		},
 		tools: {
 			setBrush: ( patch ) => state.setBrush( patch ),
-			getTargetLayerId: () => paintTarget( store, renderer.paint ),
+			getTargetLayerId: ( erasing ) =>
+				erasing ? eraseTarget( store, renderer.paint ) : paintTarget( store, renderer.paint ),
 			stamp: ( id, image, x, y, size, colour, opacity, erase ) => {
 				editor.strokes?.capture( id, dabRegion( x, y, size ) );
 				renderer.paint.stampBrush( id, image, x, y, size, colour, opacity, erase );

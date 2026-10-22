@@ -9,6 +9,8 @@ import type { ControlHandle, ControlOption } from './types';
 /** Handle on a built select. */
 export interface SelectHandle extends ControlHandle {
 	getValue: () => string;
+	/** Shows a value chosen somewhere else, without reporting it as a change. */
+	setValue: ( value: string ) => void;
 }
 
 export interface SelectOptions {
@@ -75,11 +77,15 @@ export function createSelect( options: SelectOptions ): SelectHandle {
 		select.appendChild( node );
 	}
 
-	if ( useWpd ) {
-		select.setAttribute( 'value', options.value );
-	} else {
-		( select as HTMLSelectElement ).value = options.value;
-	}
+	const write = ( value: string ) => {
+		if ( useWpd ) {
+			select.setAttribute( 'value', value );
+		} else {
+			( select as HTMLSelectElement ).value = value;
+		}
+	};
+
+	write( options.value );
 
 	const read = () =>
 		useWpd
@@ -98,6 +104,7 @@ export function createSelect( options: SelectOptions ): SelectHandle {
 	return {
 		el: wrap,
 		getValue: read,
+		setValue: write,
 		destroy: () => {
 			select.removeEventListener( 'change', onChange );
 			off();

@@ -7,7 +7,7 @@
  * them testable against a stub.
  */
 
-import type { CanvasSize } from '../../model/document';
+import type { CanvasSize, LayerTransform } from '../../model/document';
 import { encodeCanvas } from './encode';
 import type { GpuContext, GpuTarget } from './gpu';
 import type { LayerTextures } from './layer-textures';
@@ -16,6 +16,7 @@ import {
 	dabSprite,
 	extractLayerRegion,
 	fillWithMask,
+	rasteriseLayer,
 	restoreLayerRegion,
 } from './paint-ops';
 import type { PixelRect } from './paint-ops';
@@ -74,6 +75,23 @@ export class PaintApi {
 	addRasterTexture( id: string, source: HTMLCanvasElement | HTMLImageElement ): void {
 		this.endStroke();
 		this.host.layers.addRaster( id, source );
+	}
+
+	/**
+	 * Copies a layer onto a new canvas-sized sheet that can be painted and erased.
+	 *
+	 * The sheet belongs to a layer that is not in the document yet; the caller adds
+	 * it. See `rasteriseLayer()` for why the eraser needs one.
+	 *
+	 * @param fromId    Layer to copy.
+	 * @param toId      Id of the layer the sheet will back.
+	 * @param transform The copied layer's transform.
+	 * @return False when the copied layer has no pixels to copy.
+	 */
+	rasteriseLayer( fromId: string, toId: string, transform: LayerTransform ): boolean {
+		this.endStroke();
+
+		return rasteriseLayer( this.ctx, fromId, toId, transform );
 	}
 
 	/**

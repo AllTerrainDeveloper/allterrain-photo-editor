@@ -25,7 +25,7 @@ export function stampDab(
 	const brush = options.getBrush();
 
 	options.stamp(
-		options.getTargetLayerId(),
+		options.getTargetLayerId( erasing ),
 		brushStamp( brush.shape, brush.size, brush.hardness ),
 		point.x,
 		point.y,

@@ -7,7 +7,8 @@
  * edge stroke escape the marquee.
  */
 
-import type { CanvasSize } from '../../model/document';
+import type { CanvasSize, LayerTransform } from '../../model/document';
+import { placeLayer } from './compositor';
 import type { GpuContext, GpuSprite, GpuTexture } from './gpu';
 import type { LayerTextures } from './layer-textures';
 
@@ -153,6 +154,48 @@ export function compositeCanvas(
 	ctx.gpu.draw( clip.container, target );
 	clip.release();
 	texture.destroy( true );
+}
+
+/**
+ * Copies a layer onto a fresh canvas-sized sheet, exactly where it sits on screen.
+ *
+ * How the eraser gets something it can take pixels out of. The image layer is the
+ * opened photograph, which is never written to, and a text or pasted layer is an
+ * object sized to its content and placed by its transform -- painting into either in
+ * place is not possible. The sheet is what the layer shows, transform and all, as
+ * pixels that can lose their alpha.
+ *
+ * @param ctx       Paint context.
+ * @param fromId    Layer to copy.
+ * @param toId      Layer the sheet is adopted for. Must not have a texture yet.
+ * @param transform The copied layer's transform, baked into the sheet.
+ * @return False when the copied layer has no pixels to copy.
+ */
+export function rasteriseLayer(
+	ctx: PaintContext,
+	fromId: string,
+	toId: string,
+	transform: LayerTransform
+): boolean {
+	const texture = ctx.layers.get( fromId );
+
+	if ( ! texture ) {
+		return false;
+	}
+
+	const target = ctx.gpu.createTarget(
+		Math.max( 1, ctx.canvas.width ),
+		Math.max( 1, ctx.canvas.height )
+	);
+	const sprite = ctx.gpu.sprite( texture );
+
+	placeLayer( sprite, transform, ctx.canvas );
+
+	ctx.gpu.draw( sprite, target, true );
+	sprite.destroy();
+	ctx.layers.set( toId, target );
+
+	return true;
 }
 
 /**

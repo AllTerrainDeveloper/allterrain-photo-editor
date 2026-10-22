@@ -2506,6 +2506,22 @@ fn mainFragment(
     clip.release();
     texture.destroy(true);
   }
+  function rasteriseLayer(ctx, fromId, toId, transform) {
+    const texture = ctx.layers.get(fromId);
+    if (!texture) {
+      return false;
+    }
+    const target = ctx.gpu.createTarget(
+      Math.max(1, ctx.canvas.width),
+      Math.max(1, ctx.canvas.height)
+    );
+    const sprite = ctx.gpu.sprite(texture);
+    placeLayer(sprite, transform, ctx.canvas);
+    ctx.gpu.draw(sprite, target, true);
+    sprite.destroy();
+    ctx.layers.set(toId, target);
+    return true;
+  }
   function extractLayerRegion(ctx, layerId, rect, source) {
     const texture = source ?? ctx.layers.get(layerId);
     if (!texture || rect.width < 1 || rect.height < 1) {
@@ -2598,6 +2614,21 @@ fn mainFragment(
     addRasterTexture(id, source) {
       this.endStroke();
       this.host.layers.addRaster(id, source);
+    }
+    /**
+     * Copies a layer onto a new canvas-sized sheet that can be painted and erased.
+     *
+     * The sheet belongs to a layer that is not in the document yet; the caller adds
+     * it. See `rasteriseLayer()` for why the eraser needs one.
+     *
+     * @param fromId    Layer to copy.
+     * @param toId      Id of the layer the sheet will back.
+     * @param transform The copied layer's transform.
+     * @return False when the copied layer has no pixels to copy.
+     */
+    rasteriseLayer(fromId, toId, transform) {
+      this.endStroke();
+      return rasteriseLayer(this.ctx, fromId, toId, transform);
     }
     /**
      * Creates an empty paintable texture for a layer, canvas-sized.
@@ -4509,11 +4540,14 @@ fn mainFragment(
       node.textContent = option.label;
       select.appendChild(node);
     }
-    if (useWpd) {
-      select.setAttribute("value", options.value);
-    } else {
-      select.value = options.value;
-    }
+    const write = (value) => {
+      if (useWpd) {
+        select.setAttribute("value", value);
+      } else {
+        select.value = value;
+      }
+    };
+    write(options.value);
     const read = () => useWpd ? select.getAttribute("value") ?? options.value : select.value;
     const onChange = () => options.onChange(read());
     select.addEventListener("change", onChange);
@@ -4522,6 +4556,7 @@ fn mainFragment(
     return {
       el: wrap,
       getValue: read,
+      setValue: write,
       destroy: () => {
         select.removeEventListener("change", onChange);
         off();
@@ -6159,7 +6194,14 @@ fn mainFragment(
         });
         host.append(format.el, quality.el);
         syncQuality();
+        const offRecipe = ctx.onRecipeChange((recipe) => {
+          if (format.getValue() !== recipe.output.format) {
+            format.setValue(recipe.output.format);
+            syncQuality();
+          }
+        });
         return () => {
+          offRecipe();
           format.destroy();
           quality.destroy();
         };
@@ -11954,7 +11996,7 @@ fn mainFragment(
   function stampDab(options, point, erasing) {
     const brush = options.getBrush();
     options.stamp(
-      options.getTargetLayerId(),
+      options.getTargetLayerId(erasing),
       brushStamp(brush.shape, brush.size, brush.hardness),
       point.x,
       point.y,
@@ -13220,6 +13262,35 @@ fn mainFragment(
     store.setLayers([...recipe.layers, layer], layer.id, false);
     return layer.id;
   }
+  function eraseTarget(store, renderer) {
+    const recipe = store.current;
+    const active2 = recipe.layers.find((layer) => layer.id === recipe.activeLayerId);
+    if (!active2 || !renderer || isPaintSheet(store, renderer, active2.id)) {
+      return paintTarget(store, renderer);
+    }
+    const isImage = "image" === active2.kind;
+    const name = isImage ? sprintf(
+      /* translators: %s: name of the image layer being erased. */
+      __("%s (erased)"),
+      active2.name
+    ) : active2.name;
+    const sheet = {
+      ...createRasterLayer(name),
+      visible: active2.visible,
+      opacity: active2.opacity
+    };
+    if (!renderer.rasteriseLayer(active2.id, sheet.id, active2.transform)) {
+      return paintTarget(store, renderer);
+    }
+    const layers = isImage ? recipe.layers.flatMap(
+      (layer) => layer.id === active2.id ? [{ ...layer, visible: false }, sheet] : [layer]
+    ) : replaceLayer(recipe.layers, active2.id, sheet);
+    store.setLayers(layers, sheet.id, true, "rasterise");
+    if (isImage && "image/jpeg" === recipe.output.format) {
+      store.setOutput({ format: "image/png" });
+    }
+    return sheet.id;
+  }
   function isPaintSheet(store, renderer, layerId) {
     const recipe = store.current;
     const layer = recipe.layers.find((entry) => entry.id === layerId);
@@ -13309,7 +13380,7 @@ fn mainFragment(
       },
       tools: {
         setBrush: (patch) => state2.setBrush(patch),
-        getTargetLayerId: () => paintTarget(store, renderer.paint),
+        getTargetLayerId: (erasing) => erasing ? eraseTarget(store, renderer.paint) : paintTarget(store, renderer.paint),
         stamp: (id, image, x, y, size, colour, opacity, erase) => {
           editor.strokes?.capture(id, dabRegion(x, y, size));
           renderer.paint.stampBrush(id, image, x, y, size, colour, opacity, erase);
