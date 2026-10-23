@@ -48,7 +48,17 @@ export function registerOutputPanel(): void {
 			host.append( format.el, quality.el );
 			syncQuality();
 
+			// The format can change without this panel: erasing the photograph switches a
+			// JPEG output to PNG so the holes survive the save, and undo can switch it back.
+			const offRecipe = ctx.onRecipeChange( ( recipe ) => {
+				if ( format.getValue() !== recipe.output.format ) {
+					format.setValue( recipe.output.format );
+					syncQuality();
+				}
+			} );
+
 			return () => {
+				offRecipe();
 				format.destroy();
 				quality.destroy();
 			};

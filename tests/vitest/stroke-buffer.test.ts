@@ -19,6 +19,8 @@ interface FakeSprite {
 	blendMode: string;
 	anchor: { set: ( v: number ) => void };
 	position: { set: ( x: number, y: number ) => void };
+	scale: { set: ( x: number, y: number ) => void };
+	rotation: number;
 	width: number;
 	height: number;
 	mask: unknown;
@@ -76,6 +78,8 @@ function fakeGpu() {
 			blendMode: 'normal',
 			anchor: { set: () => {} },
 			position: { set: () => {} },
+			scale: { set: () => {} },
+			rotation: 0,
 			width: 0,
 			height: 0,
 			mask: null,
@@ -139,6 +143,7 @@ function fakeLayers( gpu: ReturnType< typeof fakeGpu > ) {
 
 			return t;
 		},
+		set: ( id: string, t: FakeTexture ) => void textures.set( id, t ),
 		addRaster: () => {},
 		setMask: () => {},
 		clip: ( sprite: FakeSprite ) => {
@@ -300,5 +305,46 @@ describe( 'PaintApi stroke opacity', () => {
 		);
 
 		expect( snapshots ).toHaveLength( 2 );
+	} );
+} );
+
+describe( 'PaintApi.rasteriseLayer', () => {
+	const IDENTITY = { x: 0.5, y: 0.5, scaleX: 1, scaleY: 1, rotation: 0, flipH: false, flipV: false };
+
+	it( 'copies a layer onto a new canvas-sized sheet that the eraser can then cut into', () => {
+		const { gpu, layers, paint } = paintApi();
+		const image = gpu.createTarget( 640, 480 );
+
+		image.name = 'photo';
+		image.target = false;
+		layers.textures.set( 'base', image );
+
+		expect( paint.rasteriseLayer( 'base', 'copy', IDENTITY ) ).toBe( true );
+
+		const sheet = layers.textures.get( 'copy' );
+
+		expect( sheet ).toMatchObject( { width: 100, height: 80, target: true } );
+		expect( gpu.draws ).toEqual( [
+			expect.objectContaining( { into: sheet?.name, clear: true } ),
+		] );
+		expect( gpu.draws[ 0 ].sprites[ 0 ].texture ).toBe( image );
+
+		// The original is untouched, and erasing lands on the copy.
+		expect( layers.textures.get( 'base' ) ).toBe( image );
+
+		paint.stampBrush( 'copy', STAMP, 10, 10, 20, '#000000', 1, true );
+		paint.endStroke();
+
+		const erase = gpu.draws[ gpu.draws.length - 1 ];
+
+		expect( erase?.into ).toBe( sheet?.name );
+		expect( erase?.sprites[ 0 ].blendMode ).toBe( 'erase' );
+	} );
+
+	it( 'declines a layer with no pixels', () => {
+		const { layers, paint } = paintApi();
+
+		expect( paint.rasteriseLayer( 'missing', 'copy', IDENTITY ) ).toBe( false );
+		expect( layers.textures.has( 'copy' ) ).toBe( false );
 	} );
 } );
