@@ -5,7 +5,7 @@ Requires at least: 6.0
 Requires Plugins: desktop-mode
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.4
+Stable tag: 1.1.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -148,6 +148,11 @@ This plugin bundles no third-party libraries and makes no external or CDN reques
 Rendering uses PixiJS (MIT), which is bundled by the OpenStation plugin and served from your own server. AllTerrain Photo Editor asks OpenStation for it rather than shipping a second copy: that keeps this plugin small, and two instances of the same rendering library on one page share GPU resources through globals, where tearing one down can break the other.
 
 == Changelog ==
+
+= 1.1.5 =
+* The eraser works on the photo itself. Erasing cuts real transparency into an "Image (erased)" copy, and the original stays hidden underneath, so nothing is lost. Text and pasted layers can be erased too.
+* Erasing the photo switches a JPEG output to PNG, so the transparent areas are kept when you save.
+* The Output panel's Format menu now updates when the format changes elsewhere, including on undo.
 
 = 1.1.4 =
 * A Support link under the plugin's name on the Plugins screen goes to the WordPress.org support forum.
